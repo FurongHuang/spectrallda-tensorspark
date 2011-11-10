@@ -1,24 +1,18 @@
- package Algorithm
+ package edu.icu.eecs.newport.spectralLDA.algorithm
 
-
-/**
+ /**
  * Tensor Decomposition Algorithms.
  * Alternating Least Square algorithm is implemented.
  * Created by Furong Huang on 11/2/15.
  */
-import DataMoments.DataCumulant
-import TextProcess.SimpleTokenizer
-import Utils.AlgebraUtil
-import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
-import scalaxy.loops._
-import scala.language.postfixOps
-
-import scala.collection.mutable
-import scala.util.control.Breaks._
+ import edu.icu.eecs.newport.spectralLDA.utils.AlgebraUtil
+ import edu.icu.eecs.newport.spectralLDA.datamoments.DataCumulant
+ import breeze.linalg.{DenseMatrix, DenseVector}
+ import org.apache.spark.rdd.RDD
+ import org.apache.spark.SparkContext
+ import scalaxy.loops._
+ import scala.language.postfixOps
+ import scala.util.control.Breaks._
 
 class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
   def run(sc:SparkContext, maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={

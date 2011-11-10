@@ -4,8 +4,10 @@
  * Created by Furong Huang on 11/2/15.
  */
 
-import Algorithm.TensorLDA
-import ParameterParser.AbstractParams
+package edu.icu.eecs.newport.spectralLDA
+
+import edu.icu.eecs.newport.spectralLDA.algorithm.TensorLDA
+import edu.icu.eecs.newport.spectralLDA.parameterParser.AbstractParams
 import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
 import scopt.OptionParser

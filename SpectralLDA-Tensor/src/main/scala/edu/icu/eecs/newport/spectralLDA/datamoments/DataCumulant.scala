@@ -1,12 +1,13 @@
-package DataMoments
+package edu.icu.eecs.newport.spectralLDA.datamoments
 
 /**
  * Data Cumulants Calculation.
  * Created by Furong Huang on 11/2/15.
  */
 
-import Accumulator.{DenseMatrixAccumulatorParam, DenseVectorAccumulatorParam}
-import Utils.AlgebraUtil
+import edu.icu.eecs.newport.spectralLDA.accumulator.DenseMatrixAccumulatorParam
+import edu.icu.eecs.newport.spectralLDA.accumulator.DenseVectorAccumulatorParam
+import edu.icu.eecs.newport.spectralLDA.utils.AlgebraUtil
 import breeze.linalg._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
