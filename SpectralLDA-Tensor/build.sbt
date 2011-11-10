@@ -5,6 +5,21 @@ version := "1.0"
 scalaVersion := "2.10.5"
 crossScalaVersions := Seq("2.10.5", "2.11.7")
 
+scalacOptions :=  Seq(
+  "-unchecked",
+  "-feature",
+  "-Xlint",
+  "-Ywarn-dead-code",
+  "-Ywarn-adapted-args",
+  "-Ywarn-numeric-widen",
+  "-Ywarn-value-discard",
+  "-target:jvm-1.7",
+  "-encoding", "UTF-8",
+  "-optimise",
+  "-Yclosure-elim",
+  "-Yinline"
+)
+
 libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1"
 
 libraryDependencies ++= Seq(
