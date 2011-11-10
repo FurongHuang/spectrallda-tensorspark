@@ -27,6 +27,8 @@ libraryDependencies ++= Seq(
   "org.scalanlp" %% "breeze-viz" % "0.11.2"
 )
 
+libraryDependencies += "com.nativelibs4java" %% "scalaxy-loops" % "0.3.4"
+
 libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1"
 
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"

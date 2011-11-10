@@ -14,6 +14,8 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
+import scalaxy.loops._
+import scala.language.postfixOps
 
 import scala.collection.mutable
 import scala.util.control.Breaks._
@@ -55,7 +57,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         // println("Mode A...")
         val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
         // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
-        for (idx: Int <- 0 until dimK) {
+        for (idx <- 0 until dimK optimized) {
           A(idx, ::) := A_array(idx).t
         }
         lambda = AlgebraUtil.colWiseNorm2(A)
@@ -66,7 +68,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         // println("Mode B...")
         val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
         // B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()
-        for (idx: Int <- 0 until dimK) {
+        for (idx <- 0 until dimK optimized) {
           B(idx, ::) := B_array(idx).t
         }
         B = AlgebraUtil.matrixNormalization(B)
@@ -75,7 +77,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         // println("Mode C...")
         val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
         // C_array = pseudoRDD.map(i => updateALSiteration(dimK, C, B, A, T(i, ::).t)).collect()
-        for (idx: Int <- 0 until dimK) {
+        for (idx <- 0 until dimK optimized) {
           C(idx, ::) := C_array(idx).t
         }
         C = AlgebraUtil.matrixNormalization(C)
@@ -114,7 +116,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
 
   private def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
     val M_onSimplex: DenseMatrix[Double] = DenseMatrix.zeros[Double](M.rows, M.cols)
-    for(i: Int<- 0 until M.cols){
+    for(i <- 0 until M.cols optimized){
       val thisColumn = M(::,i)
 
       val tmp1 = simplexProj(thisColumn)
@@ -142,7 +144,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
     var maxIndex : Int = 0
     // find maxIndex
     breakable{
-      for (i: Int<- 0 until len){
+      for (i <- 0 until len optimized){
         if (TobefindMax(len - i - 1) > 0){
           maxIndex = len - i - 1
           break()

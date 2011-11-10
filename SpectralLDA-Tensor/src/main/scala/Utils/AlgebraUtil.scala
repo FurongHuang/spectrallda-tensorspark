@@ -6,6 +6,8 @@ package Utils
  */
 
 import breeze.linalg.{DenseMatrix, DenseVector}
+import scalaxy.loops._
+import scala.language.postfixOps
 
 object AlgebraUtil{
   private val SEED_random: Long = System.currentTimeMillis
@@ -32,8 +34,8 @@ object AlgebraUtil{
   def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
     val A:DenseMatrix[Double] = B.copy
 
-    for (j: Int <- 0 until A.cols) {
-      for (i: Int <- 0 until j) {
+    for (j <- 0 until A.cols optimized) {
+      for (i <- 0 until j optimized) {
         val dotij = A(::, j) dot A(::, i)
         A(::, j) :-= (A(::, i) :* dotij)
 
@@ -48,7 +50,7 @@ object AlgebraUtil{
 
   def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
     val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
-    for (i: Int <- 0 until A.cols) {
+    for (i <- 0 until A.cols optimized) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       normVec(i) = (if (thisnorm > TOLERANCE) thisnorm else TOLERANCE)
     }
@@ -58,7 +60,7 @@ object AlgebraUtil{
 
   def matrixNormalization(B: DenseMatrix[Double]): DenseMatrix[Double] = {
     val A: DenseMatrix[Double] = B.copy
-    for (i: Int <- 0 until A.cols) {
+    for (i <- 0 until A.cols optimized) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       A(::, i) :*= (if (thisnorm > TOLERANCE) (1.0 / thisnorm) else TOLERANCE)
     }
@@ -73,7 +75,7 @@ object AlgebraUtil{
   def KhatrioRao(A: DenseMatrix[Double], B: DenseMatrix[Double]): DenseMatrix[Double] = {
     assert(B.cols == A.cols)
     val Out = DenseMatrix.zeros[Double](B.rows * A.rows, A.cols)
-    for (i: Int <- 0 until A.cols) {
+    for (i <- 0 until A.cols optimized) {
       Out(::, i) := KhatrioRao(A(::, i), B(::, i))
 
     }
@@ -89,7 +91,7 @@ object AlgebraUtil{
   def Multip_KhatrioRao(T: DenseVector[Double], C: DenseMatrix[Double], B: DenseMatrix[Double]): DenseVector[Double] = {
     assert(B.cols == C.cols)
     val Out = DenseVector.zeros[Double](C.cols)
-    for (i: Int <- 0 until C.cols) {
+    for (i <- 0 until C.cols optimized) {
       Out(i) = Multip_KhatrioRao(T, C(::, i), B(::, i))
 
     }
@@ -100,7 +102,7 @@ object AlgebraUtil{
   def Multip_KhatrioRao(T: DenseMatrix[Double], C: DenseMatrix[Double], B: DenseMatrix[Double]): DenseMatrix[Double] = {
     assert(B.cols == C.cols)
     val Out = DenseMatrix.zeros[Double](C.cols, T.rows)
-    for (i: Int <- 0 until T.rows) {
+    for (i <- 0 until T.rows optimized) {
       val thisRowOfT: DenseVector[Double] = T(i, ::).t
       Out(::, i) := Multip_KhatrioRao(thisRowOfT, C, B)
     }
