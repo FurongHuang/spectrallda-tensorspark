@@ -32,9 +32,7 @@ len = 2+ poissrnd(expectedlen,1,n);
 Counts=mnrnd(len',A*beta);
 
 len_test = 2+ poissrnd(expectedlen,1,n_test);
-Counts_test = mnrnd(len',A_test*beta);
-                    
-
+Counts_test = mnrnd(len_test',A_test*beta);
 
 fid = fopen('datasets/synthetic/alpha.txt','wt');
 for index_col = 1: length(alpha)
