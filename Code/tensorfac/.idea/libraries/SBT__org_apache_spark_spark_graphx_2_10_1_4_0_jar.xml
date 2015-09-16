@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="SBT: org.apache.spark:spark-graphx_2.10:1.4.0:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.spark/spark-graphx_2.10/jars/spark-graphx_2.10-1.4.0.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.spark/spark-graphx_2.10/docs/spark-graphx_2.10-1.4.0-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.spark/spark-graphx_2.10/srcs/spark-graphx_2.10-1.4.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

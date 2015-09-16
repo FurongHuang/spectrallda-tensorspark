@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="SBT: com.twitter:parquet-common:1.6.0rc3:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.twitter/parquet-common/jars/parquet-common-1.6.0rc3.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.twitter/parquet-common/docs/parquet-common-1.6.0rc3-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.twitter/parquet-common/srcs/parquet-common-1.6.0rc3-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
