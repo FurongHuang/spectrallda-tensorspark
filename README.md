@@ -56,7 +56,13 @@ For your convenience, the IDEA projected using [Intellij IDEA](https://www.jetbr
 * Dependencies
 
 
-See [Code/tensorfac/build.sbt](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/build.sbt?at=master&fileviewer=file-view-default) for the dependencies.
+* * See [Code/tensorfac/build.sbt](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/build.sbt?at=master&fileviewer=file-view-default) for the dependencies.
+
+
+### References ###
+* Project Page: http://newport.eecs.uci.edu/anandkumar/Lab/Lab_sub/community.html
+* Paper: http://newport.eecs.uci.edu/anandkumar/pubs/Huang_etal_communities_GPU.pdf
+* * F. Huang, U.N. Niranjan, M.U. Hakeem, A. Anandkumar, "Fast Detection of Overlapping Communities via Online Tensor Methods", JMLR 2014.
 
 
 ### Who do I talk to? ###
