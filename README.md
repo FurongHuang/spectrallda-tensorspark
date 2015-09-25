@@ -67,6 +67,12 @@ For your convenience, the IDEA projected using [Intellij IDEA](https://www.jetbr
 * * F. Huang, U.N. Niranjan, M.U. Hakeem, A. Anandkumar, "Fast Detection of Overlapping Communities via Online Tensor Methods", JMLR 2014.
 
 
+
+### Run a Synthetic Experiment Toy Example
+* cd to spectral-lda/Code/tensorfac
+* type: sbt
+* In sbt, type: run data/datasets/synthetic/samples_train_libsvm.txt
+
 ### Who do I talk to? ###
 
 * Repo owner or admin: Furong Huang 
