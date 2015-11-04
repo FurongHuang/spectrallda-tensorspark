@@ -22,14 +22,15 @@ object SpectralLDA {
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
-                             stopWordFile: String = s"src/main/resources/Data/datasets/StopWords_common.txt",
-                             reducerMaxSizeInFlight:String = "1g",
-                             executorMemory:String ="1g",
-                             driveMemory:String ="1g",
-                             shuffleFileBuffer:String ="1g",
-                             driverMaxResultSize:String ="1g",
-                             storageMemoryFraction:String ="0.5",
-                             sparkRddCompress:String ="true") extends AbstractParams[Params]
+                             stopWordFile: String =s"src/main/resources/Data/datasets/StopWords_common.txt",
+                             reducerMaxSizeInFlight:String=s"512m",//s"1g",
+                             executorMemory:String =s"1g",
+                             driveMemory:String =s"2g",
+                             shuffleFileBuffer:String =s"10m",//s"1g",
+                             driverMaxResultSize:String=s"2g",
+                             storageMemoryFraction:String=s"0.6",
+                             sparkRddCompress:String =s"false"
+                             ) extends AbstractParams[Params]
 
   def main(args: Array[String]) {
     val defaultParams = Params()

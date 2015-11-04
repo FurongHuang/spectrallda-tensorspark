@@ -36,21 +36,21 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
 
   private def processDocuments(paths: Seq[String], stopwordFile: String, vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) = {
     val textRDD: RDD[String] = sc.textFile(paths.mkString(","))
-    println("successfully read the raw data.")
+    println("successfully read the raw data." )
+	textRDD.cache()
     // Split text into words
     val tokenizer: SimpleTokenizer = new SimpleTokenizer(sc, stopwordFile)
     val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex().map { case (text, id) =>
       id -> tokenizer.getWords(text)
     }
     tokenized.cache()
-    println("successfully tokenized.")
     
     // Counts words: RDD[(word, wordCount)]
     val wordCounts: RDD[(String, Long)] = tokenized.flatMap{ case (_, tokens) => tokens.map(_ -> 1L) }.reduceByKey(_ + _)
-    println("wordCount done.")
     wordCounts.cache()
     val fullVocabSize: Long = wordCounts.count()
-	println("successfully counted words in total.")
+    
+	
 	
     // Select vocab
     val (vocab: Map[String, Int], selectedTokenCount: Long) = {
@@ -63,7 +63,8 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
       }
       (tmpSortedWC.map(_._1).zipWithIndex.toMap, tmpSortedWC.map(_._2).sum)
     }
-    println("successfully got the vocab.")
+    println("selectedTokenCount: " + selectedTokenCount.toString)
+    println("vocab.size: " + vocab.size.toString)
 
     val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = tokenized.map { case (id, tokens) =>
       // Filter tokens by vocabulary, and create word count vector representation of document.
@@ -88,7 +89,7 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
     val vocabarray: Array[String] = new Array[String](vocab.size)
     vocab.foreach { case (term, i) => vocabarray(i) = term }
 
-    (mydocuments, vocabarray, selectedTokenCount.toInt)
+    (mydocuments, vocabarray, vocab.size)
   }
 
   private def processDocuments_synthetic(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, SparseVector[Double])], Array[String], Int) ={

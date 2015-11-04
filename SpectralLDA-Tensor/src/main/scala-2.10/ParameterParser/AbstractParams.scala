@@ -29,7 +29,7 @@ import scala.reflect.runtime.universe._
  * This overrides the [[toString]] method to print all case class fields by name and value.
  * @tparam T  Concrete parameter class.
  */
-abstract class AbstractParams[T: TypeTag] {
+abstract class AbstractParams[T: TypeTag]() {
 
   private def tag: TypeTag[T] = typeTag[T]
 
