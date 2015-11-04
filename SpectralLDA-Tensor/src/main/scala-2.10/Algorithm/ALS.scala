@@ -53,10 +53,9 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         
         val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
         
-        println("Mode A...")
+        // println("Mode A...")
         A_array = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
         // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
-        println("Mode A done.")
         for (idx: Int <- 0 until dimK) {
           A(idx, ::) := A_array(idx).t
         }
@@ -66,7 +65,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
 
 
         var B_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
-        println("Mode B...")
+        // println("Mode B...")
         B_array = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
     	// B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()		
         for (idx: Int <- 0 until dimK) {
@@ -76,7 +75,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         // B_broadcasted = sc.broadcast(B)
 
         var C_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
-        println("Mode C...")
+        // println("Mode C...")
         C_array = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
         // C_array = pseudoRDD.map(i => updateALSiteration(dimK, C, B, A, T(i, ::).t)).collect()
         for (idx: Int <- 0 until dimK) {

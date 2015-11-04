@@ -21,14 +21,7 @@ import scala.util.control.Breaks._
 class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, synthetic: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
   private val slices:Int = slices_string.toInt
   println("Start reading data...")
-  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {
-    // val conf: SparkConf = new SparkConf().setMaster("local" + "[" + slices_string + "]").set("spark.reducer.maxSizeInFlight",reducerMaxSizeInFlight).set("spark.executor.memory",executorMemory).set("spark.driver.memory",driveMemory).set("spark.driver.maxResultSize",driverMaxResultSize).set("spark.shuffle.file.buffer",shuffleFileBuffer).setAppName(s"Generating RDD from synthetic data").set("spark.storage.memoryFraction",storageMemoryFraction).set("spark.rdd.compress",sparkRddCompress)
-    // val sc: SparkContext = new SparkContext(conf)
-    processDocuments_synthetic(sc, paths, vocabSize)}
-  else {
-    // val conf: SparkConf = new SparkConf().setMaster("local" + "[" + slices_string + "]").set("spark.reducer.maxSizeInFlight",reducerMaxSizeInFlight).set("spark.executor.memory",executorMemory).set("spark.driver.memory",driveMemory).set("spark.driver.maxResultSize",driverMaxResultSize).set("spark.shuffle.file.buffer",shuffleFileBuffer).setAppName(s"Generating RDD from real text").set("spark.storage.memoryFraction",storageMemoryFraction).set("spark.rdd.compress",sparkRddCompress)
-    // val sc: SparkContext = new SparkContext(conf)
-    processDocuments(sc, paths, stopwordFile, vocabSize)}
+  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {processDocuments_synthetic(paths, vocabSize)} else { processDocuments(paths, stopwordFile, vocabSize)}
   val numDocs: Long = documents.count()
   println("Finished reading data.")
   private val myData: DataCumulant = new DataCumulant(sc, slices, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
@@ -41,24 +34,25 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
 
 
 
-  private def processDocuments(sc: SparkContext, paths: Seq[String], stopwordFile: String, vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) = {
+  private def processDocuments(paths: Seq[String], stopwordFile: String, vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) = {
     val textRDD: RDD[String] = sc.textFile(paths.mkString(","))
+    println("successfully read the raw data.")
     // Split text into words
     val tokenizer: SimpleTokenizer = new SimpleTokenizer(sc, stopwordFile)
     val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex().map { case (text, id) =>
       id -> tokenizer.getWords(text)
     }
     tokenized.cache()
-
+    println("successfully tokenized.")
+    
     // Counts words: RDD[(word, wordCount)]
-    val wordCounts: RDD[(String, Long)] = tokenized
-      .flatMap { case (_, tokens) => tokens.map(_ -> 1L) }
-      .reduceByKey(_ + _)
+    val wordCounts: RDD[(String, Long)] = tokenized.flatMap{ case (_, tokens) => tokens.map(_ -> 1L) }.reduceByKey(_ + _)
+    println("wordCount done.")
     wordCounts.cache()
     val fullVocabSize: Long = wordCounts.count()
-
+	println("successfully counted words in total.")
+	
     // Select vocab
-
     val (vocab: Map[String, Int], selectedTokenCount: Long) = {
       val tmpSortedWC: Array[(String, Long)] = if (vocabSize == -1 || fullVocabSize <= vocabSize) {
         // Use all terms
@@ -69,6 +63,7 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
       }
       (tmpSortedWC.map(_._1).zipWithIndex.toMap, tmpSortedWC.map(_._2).sum)
     }
+    println("successfully got the vocab.")
 
     val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = tokenized.map { case (id, tokens) =>
       // Filter tokens by vocabulary, and create word count vector representation of document.
@@ -89,13 +84,14 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
       }
       (id, len, sb)
     }
+    println("successfully got the documents.")
     val vocabarray: Array[String] = new Array[String](vocab.size)
     vocab.foreach { case (term, i) => vocabarray(i) = term }
 
     (mydocuments, vocabarray, selectedTokenCount.toInt)
   }
 
-  private def processDocuments_synthetic(sc: SparkContext, paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, SparseVector[Double])], Array[String], Int) ={
+  private def processDocuments_synthetic(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, SparseVector[Double])], Array[String], Int) ={
     val mypath: String = paths.mkString(",")
     println(mypath)
     val mylabeledpoints: RDD[LabeledPoint] = MLUtils.loadLibSVMFile(sc, mypath)

@@ -14,15 +14,15 @@ import org.apache.log4j.{Level, Logger}
 object SpectralLDA {
   private case class Params(
                              input: Seq[String] = Seq.empty,//use this for customized input
-                             synthetic: Int = 0, //Note: for real texts set, set parameter "synthetic"=0 (default), use real text (per article per row) "/Users/furongh/Documents/BITBUCKET/SpectralLDA_Spark/SpectralLDA-Tensor/src/main/resources/Data/datasets/enron_email/corpus.txt"
-                             // synthetic: Int = 1, //Note: for synthetic data, set parameter "synthetic"=1, use synthetic data "/Users/furongh/Documents/BITBUCKET/SpectralLDA_Spark/SpectralLDA-Tensor/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt"
+                             synthetic: Int = 0, //Note: for real texts set, set parameter "synthetic"=0 (default), use real text (per article per row) "SpectralLDA-Tensor/src/main/resources/Data/datasets/enron_email/corpus.txt"
+                             // synthetic: Int = 1, //Note: for synthetic data, set parameter "synthetic"=1, use synthetic data "SpectralLDA-Tensor/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt"
                              slices: String = "2",
                              k: Int = 2,
                              maxIterations: Int = 100,
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
-                             stopWordFile: String = "/Users/furongh/Documents/BITBUCKET/SpectralLDA_Spark/SpectralLDA-Tensor/src/main/resources/Data/datasets/StopWords_common.txt",
+                             stopWordFile: String = s"src/main/resources/Data/datasets/StopWords_common.txt",
                              reducerMaxSizeInFlight:String = "1g",
                              executorMemory:String ="1g",
                              driveMemory:String ="1g",
@@ -110,10 +110,10 @@ object SpectralLDA {
       println("Running real example.")
     }
     val preprocessStart: Long = System.nanoTime()
-
+	println("Generating a new SparkContext with "+ params.slices +" slices... ")
     val conf: SparkConf = new SparkConf().setMaster("local" + "[" + params.slices + "]").set("spark.reducer.maxSizeInFlight",params.reducerMaxSizeInFlight).set("spark.executor.memory",params.executorMemory).set("spark.driver.memory",params.driveMemory).set("spark.driver.maxResultSize",params.driverMaxResultSize).set("spark.shuffle.file.buffer",params.shuffleFileBuffer).setAppName(s"Spectral LDA via Tensor Decomposition").set("spark.storage.memoryFraction",params.storageMemoryFraction).set("spark.rdd.compress",params.sparkRddCompress)
     val sc: SparkContext = new SparkContext(conf)
-
+	println("Generated the SparkConetxt")
     val myTensorLDA: TensorLDA = new TensorLDA(sc, params.slices, //params.reducerMaxSizeInFlight, params.executorMemory,params.driveMemory,params.driverMaxResultSize,params.shuffleFileBuffer,params.storageMemoryFraction,params.sparkRddCompress,
       params.input, params.stopWordFile, params.synthetic, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
     println("Start ALS algorithm for tensor decomposition...")
