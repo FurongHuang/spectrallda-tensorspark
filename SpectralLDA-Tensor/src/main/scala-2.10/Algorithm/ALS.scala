@@ -50,9 +50,9 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
           A_prev = A.copy
         }
         var A_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
-        
+
         val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
-        
+
         // println("Mode A...")
         A_array = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
         // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
@@ -67,7 +67,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         var B_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
         // println("Mode B...")
         B_array = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
-    	// B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()		
+        // B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()
         for (idx: Int <- 0 until dimK) {
           B(idx, ::) := B_array(idx).t
         }
@@ -97,10 +97,10 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
   }
 
   private def toRDD(sc: SparkContext, m: DenseMatrix[Double]): RDD[DenseVector[Double]] = {
-  	val columns = m.toArray.grouped(m.rows)
-  	val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
-  	val vectors = rows.map(row => new DenseVector[Double](row.toArray))
-  	sc.parallelize(vectors)
+        val columns = m.toArray.grouped(m.rows)
+        val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
+        val vectors = rows.map(row => new DenseVector[Double](row.toArray))
+        sc.parallelize(vectors)
   }
 
   private def updateALSiteration(dimK: Int, A_old: DenseMatrix[Double], B_old: DenseMatrix[Double], C_old: DenseMatrix[Double], T: DenseVector[Double]): DenseVector[Double] = {
@@ -140,7 +140,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
     val Index: DenseVector[Double] = DenseVector((1 to (len + 1)).toArray.map(x => 1.0/x.toDouble))
     val InterVec: DenseVector[Double] = cums :* Index
     val TobefindMax: DenseVector[Double] = U - InterVec
-    var maxIndex : Long = 0
+    var maxIndex : Int = 0
     // find maxIndex
     breakable{
       for (i: Int<- 0 until len){
@@ -150,7 +150,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         }
       }
     }
-    val theta: Double = InterVec(maxIndex.toInt)
+    val theta: Double = InterVec(maxIndex)
     val W: DenseVector[Double] = V.map(x => x - theta)
     val P_norm: DenseVector[Double] = W.map(x => if (x > 0) x else 0)
     P_norm
