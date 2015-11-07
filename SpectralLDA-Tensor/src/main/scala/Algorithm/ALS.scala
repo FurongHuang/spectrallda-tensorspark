@@ -94,7 +94,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
   }
 
   private def toRDD(sc: SparkContext, m: DenseMatrix[Double]): RDD[DenseVector[Double]] = {
-        val columns = m.toArray.grouped(m.rows)
+        val columns = m.data.grouped(m.rows)
         val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
         val vectors = rows.map(row => new DenseVector[Double](row.toArray))
         sc.parallelize(vectors)
