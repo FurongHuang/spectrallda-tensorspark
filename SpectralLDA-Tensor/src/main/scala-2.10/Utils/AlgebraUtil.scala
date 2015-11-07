@@ -66,8 +66,7 @@ object AlgebraUtil{
   }
 
   def KhatrioRao(A: DenseVector[Double], B: DenseVector[Double]): DenseVector[Double] = {
-    var Out = DenseMatrix.zeros[Double](B.length, A.length)
-    Out = B * A.t
+    val Out: DenseMatrix[Double] = B * A.t
     Out.flatten()
   }
 
@@ -83,8 +82,7 @@ object AlgebraUtil{
 
 
   def Multip_KhatrioRao(T: DenseVector[Double], C: DenseVector[Double], B: DenseVector[Double]): Double = {
-    var longvec = DenseVector.zeros[Double](C.length * B.length)
-    longvec = KhatrioRao(C, B)
+    val longvec: DenseVector[Double] = KhatrioRao(C, B)
     T dot longvec
   }
 
@@ -103,10 +101,8 @@ object AlgebraUtil{
     assert(B.cols == C.cols)
     val Out = DenseMatrix.zeros[Double](C.cols, T.rows)
     for (i: Int <- 0 until T.rows) {
-      var thisRowOfT = DenseVector.zeros[Double](T.cols)
-      thisRowOfT = T(i, ::).t
+      val thisRowOfT: DenseVector[Double] = T(i, ::).t
       Out(::, i) := Multip_KhatrioRao(thisRowOfT, C, B)
-
     }
     Out.t
   }
@@ -129,4 +125,3 @@ object AlgebraUtil{
   }
 
 }
-

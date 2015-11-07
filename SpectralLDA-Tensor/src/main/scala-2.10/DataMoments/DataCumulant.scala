@@ -83,8 +83,7 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
   }
 
   private def update_firstOrderMoments(dim: Int, Wc: breeze.linalg.DenseVector[Double], len: Double) = {
-    var M1:DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dim)
-    M1 = Wc.map(x => x/len)
+    val M1: DenseVector[Double] = Wc.map(x => x/len)
     M1
   }
 

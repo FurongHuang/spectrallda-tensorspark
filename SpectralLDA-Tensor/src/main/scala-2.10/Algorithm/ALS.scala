@@ -49,12 +49,11 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
           }
           A_prev = A.copy
         }
-        var A_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
 
         val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
 
         // println("Mode A...")
-        A_array = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
+        val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
         // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
         for (idx: Int <- 0 until dimK) {
           A(idx, ::) := A_array(idx).t
@@ -64,9 +63,8 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         // A_broadcasted = sc.broadcast(A)
 
 
-        var B_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
         // println("Mode B...")
-        B_array = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
+        val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
         // B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()
         for (idx: Int <- 0 until dimK) {
           B(idx, ::) := B_array(idx).t
@@ -74,9 +72,8 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
         B = AlgebraUtil.matrixNormalization(B)
         // B_broadcasted = sc.broadcast(B)
 
-        var C_array: Array[DenseVector[Double]] = new Array[DenseVector[Double]](dimK)
         // println("Mode C...")
-        C_array = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
+        val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
         // C_array = pseudoRDD.map(i => updateALSiteration(dimK, C, B, A, T(i, ::).t)).collect()
         for (idx: Int <- 0 until dimK) {
           C(idx, ::) := C_array(idx).t
@@ -106,11 +103,9 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
   private def updateALSiteration(dimK: Int, A_old: DenseMatrix[Double], B_old: DenseMatrix[Double], C_old: DenseMatrix[Double], T: DenseVector[Double]): DenseVector[Double] = {
     val Inverted: DenseMatrix[Double] = AlgebraUtil.to_invert(C_old, B_old)
 
-    var result = new DenseVector[Double](dimK)
     assert(T.length == dimK * dimK)
     val rhs: DenseVector[Double] = AlgebraUtil.Multip_KhatrioRao(T, C_old, B_old)
-    result = Inverted * rhs
-    result
+    Inverted * rhs
   }
 
   private def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
