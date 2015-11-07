@@ -14,7 +14,7 @@ import org.apache.spark.{Accumulator, SparkContext}
 import scala.collection.mutable
 
 class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tolerance: Double, documents:RDD[(Long, Double, SparseVector[Double])],dimVocab: Int,numDocs: Long ) extends Serializable {
-  private var M1: Accumulator[DenseVector[Double]] = sc.accumulator(breeze.linalg.DenseVector.zeros[Double](dimVocab))(DenseVectorAccumulatorParam)
+  private val M1: Accumulator[DenseVector[Double]] = sc.accumulator(breeze.linalg.DenseVector.zeros[Double](dimVocab))(DenseVectorAccumulatorParam)
   println("Start calculating first order moments...")
   documents.foreach( this_document => M1 += update_firstOrderMoments(dimVocab, this_document._3.toDenseVector, this_document._2))
   private var firstOrderMoments:DenseVector[Double] = M1.value
@@ -60,7 +60,7 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
 
     val firstOrderMoments_broadcasted: Broadcast[breeze.linalg.DenseVector[Double]] = sc.broadcast(firstOrderMoments.toDenseVector)
     // val documents_broadcasted: Broadcast[Array[(Long, Double, breeze.linalg.SparseVector[Double])]] = sc.broadcast(documents.collect())
-    var M2_a_S: Accumulator[breeze.linalg.DenseMatrix[Double]] = sc.accumulator(breeze.linalg.DenseMatrix.zeros[Double](vocabSize, dimK*2), "Second Order Moment multiplied with S: M2_a * S")(DenseMatrixAccumulatorParam)
+    val M2_a_S: Accumulator[breeze.linalg.DenseMatrix[Double]] = sc.accumulator(breeze.linalg.DenseMatrix.zeros[Double](vocabSize, dimK*2), "Second Order Moment multiplied with S: M2_a * S")(DenseMatrixAccumulatorParam)
     documents.foreach(this_document => M2_a_S  += accumulate_M_mul_S(vocabSize, dimK*2, alpha0, firstOrderMoments_broadcasted.value, gaussianRandomMatrix_broadcasted.value, this_document._3, this_document._2))
 
     M2_a_S.value *= para_main
@@ -68,7 +68,7 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
     M2_a_S.value -= shiftedMatrix :* para_shift
 
     val Q = AlgebraUtil.orthogonalizeMatCols(M2_a_S.value)
-    var M2_a_Q: Accumulator[DenseMatrix[Double]] = sc.accumulator(breeze.linalg.DenseMatrix.zeros[Double](vocabSize, dimK*2), "Second Order Moment multiplied with S: M2_a * S")(DenseMatrixAccumulatorParam)
+    val M2_a_Q: Accumulator[DenseMatrix[Double]] = sc.accumulator(breeze.linalg.DenseMatrix.zeros[Double](vocabSize, dimK*2), "Second Order Moment multiplied with S: M2_a * S")(DenseMatrixAccumulatorParam)
 
     documents.foreach(this_document => M2_a_Q += accumulate_M_mul_S(vocabSize, dimK*2, alpha0, firstOrderMoments, Q, this_document._3, this_document._2))
     M2_a_Q.value *= para_main
@@ -134,7 +134,7 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
     val M2_a = breeze.linalg.DenseMatrix.zeros[Double](dimVocab, dimK)
 
     val norm_length: Double = 1.0 / (len_calibrated * (len_calibrated - 1.0))
-    var data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
+    val data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
 
     var offset = 0
     while (offset < Wc.activeSize) {
@@ -159,7 +159,7 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
               eigenValues: breeze.linalg.DenseVector[Double], eigenVectors: breeze.linalg.DenseMatrix[Double],
               Wc: breeze.linalg.SparseVector[Double]): breeze.linalg.DenseVector[Double] = {
     var offset = 0
-    var result = breeze.linalg.DenseVector.zeros[Double](dimK)
+    val result = breeze.linalg.DenseVector.zeros[Double](dimK)
     while (offset < Wc.activeSize) {
       val token: Int = Wc.indexAt(offset)
       val count: Double = Wc.valueAt(offset)

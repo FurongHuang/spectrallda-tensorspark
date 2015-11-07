@@ -30,7 +30,7 @@ object AlgebraUtil{
 
 
   def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    var A:DenseMatrix[Double] = B.copy
+    val A:DenseMatrix[Double] = B.copy
 
     for (j: Int <- 0 until A.cols) {
       for (i: Int <- 0 until j) {
@@ -47,7 +47,7 @@ object AlgebraUtil{
 
 
   def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
-    var normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
+    val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
     for (i: Int <- 0 until A.cols) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       normVec(i) = (if (thisnorm > TOLERANCE) thisnorm else TOLERANCE)
@@ -57,7 +57,7 @@ object AlgebraUtil{
 
 
   def matrixNormalization(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    var A: DenseMatrix[Double] = B.copy
+    val A: DenseMatrix[Double] = B.copy
     for (i: Int <- 0 until A.cols) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       A(::, i) :*= (if (thisnorm > TOLERANCE) (1.0 / thisnorm) else TOLERANCE)
