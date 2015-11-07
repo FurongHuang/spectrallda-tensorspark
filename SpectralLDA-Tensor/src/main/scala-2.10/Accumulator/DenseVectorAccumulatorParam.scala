@@ -1,8 +1,5 @@
 package Accumulator
 
-/**
- * Created by furongh on 11/3/15.
- */
 import org.apache.spark.AccumulatorParam
 
 /**
