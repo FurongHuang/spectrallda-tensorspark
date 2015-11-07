@@ -2,7 +2,8 @@ name := "SpectralLDA-Tensor"
 
 version := "1.0"
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.10.5"
+crossScalaVersions := Seq("2.10.5", "2.11.7")
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1"
 
