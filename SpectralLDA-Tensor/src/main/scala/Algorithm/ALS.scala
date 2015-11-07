@@ -94,10 +94,14 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
   }
 
   private def toRDD(sc: SparkContext, m: DenseMatrix[Double]): RDD[DenseVector[Double]] = {
-        val columns = m.data.grouped(m.rows)
-        val rows = columns.toSeq.transpose // Skip this if you want a column-major RDD.
-        val vectors = rows.map(row => new DenseVector[Double](row.toArray))
-        sc.parallelize(vectors)
+    val rows: Iterator[Array[Double]] = if (m.isTranspose) {
+      m.data.grouped(m.majorStride)
+    } else {
+      val columns = m.data.grouped(m.rows)
+      columns.toArray.transpose.iterator // Skip this if you want a column-major RDD.
+    }
+    val vectors = rows.map(row => new DenseVector[Double](row))
+    sc.parallelize(vectors.to)
   }
 
   private def updateALSiteration(dimK: Int, A_old: DenseMatrix[Double], B_old: DenseMatrix[Double], C_old: DenseMatrix[Double], T: DenseVector[Double]): DenseVector[Double] = {
