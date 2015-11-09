@@ -44,14 +44,14 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
       id -> tokenizer.getWords(text)
     }
     tokenized.cache()
-    
+
     // Counts words: RDD[(word, wordCount)]
     val wordCounts: RDD[(String, Long)] = tokenized.flatMap{ case (_, tokens) => tokens.map(_ -> 1L) }.reduceByKey(_ + _)
     wordCounts.cache()
     val fullVocabSize: Long = wordCounts.count()
-    
-	
-	
+
+
+
     // Select vocab
     val (vocab: Map[String, Int], selectedTokenCount: Long) = {
       val tmpSortedWC: Array[(String, Long)] = if (vocabSize == -1 || fullVocabSize <= vocabSize) {
@@ -96,7 +96,10 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
     val mypath: String = paths.mkString(",")
     println(mypath)
     val mylabeledpoints: RDD[LabeledPoint] = MLUtils.loadLibSVMFile(sc, mypath)
-    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = mylabeledpoints.map(f => (f.label.toLong, f.features.toArray.sum, new breeze.linalg.SparseVector[Double](f.features.toSparse.indices, f.features.toSparse.values, f.features.toSparse.size)))
+    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = mylabeledpoints.map { f =>
+      val sparseFeats = f.features.toSparse
+      (f.label.toLong, sparseFeats.values.sum, new breeze.linalg.SparseVector[Double](sparseFeats.indices, sparseFeats.values, sparseFeats.size))
+    }
     // val mydocuments_collected: Array[(Long, Double, SparseVector[Double])] = mydocuments.collect()
     val vocabsize = mydocuments.collect()(0)._3.length
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)

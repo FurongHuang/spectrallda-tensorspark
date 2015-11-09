@@ -30,7 +30,7 @@ object AlgebraUtil{
 
 
   def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    var A:DenseMatrix[Double] = B.copy
+    val A:DenseMatrix[Double] = B.copy
 
     for (j: Int <- 0 until A.cols) {
       for (i: Int <- 0 until j) {
@@ -47,7 +47,7 @@ object AlgebraUtil{
 
 
   def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
-    var normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
+    val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
     for (i: Int <- 0 until A.cols) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       normVec(i) = (if (thisnorm > TOLERANCE) thisnorm else TOLERANCE)
@@ -57,7 +57,7 @@ object AlgebraUtil{
 
 
   def matrixNormalization(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    var A: DenseMatrix[Double] = B.copy
+    val A: DenseMatrix[Double] = B.copy
     for (i: Int <- 0 until A.cols) {
       val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
       A(::, i) :*= (if (thisnorm > TOLERANCE) (1.0 / thisnorm) else TOLERANCE)
@@ -66,8 +66,7 @@ object AlgebraUtil{
   }
 
   def KhatrioRao(A: DenseVector[Double], B: DenseVector[Double]): DenseVector[Double] = {
-    var Out = DenseMatrix.zeros[Double](B.length, A.length)
-    Out = B * A.t
+    val Out: DenseMatrix[Double] = B * A.t
     Out.flatten()
   }
 
@@ -83,8 +82,7 @@ object AlgebraUtil{
 
 
   def Multip_KhatrioRao(T: DenseVector[Double], C: DenseVector[Double], B: DenseVector[Double]): Double = {
-    var longvec = DenseVector.zeros[Double](C.length * B.length)
-    longvec = KhatrioRao(C, B)
+    val longvec: DenseVector[Double] = KhatrioRao(C, B)
     T dot longvec
   }
 
@@ -103,10 +101,8 @@ object AlgebraUtil{
     assert(B.cols == C.cols)
     val Out = DenseMatrix.zeros[Double](C.cols, T.rows)
     for (i: Int <- 0 until T.rows) {
-      var thisRowOfT = DenseVector.zeros[Double](T.cols)
-      thisRowOfT = T(i, ::).t
+      val thisRowOfT: DenseVector[Double] = T(i, ::).t
       Out(::, i) := Multip_KhatrioRao(thisRowOfT, C, B)
-
     }
     Out.t
   }
@@ -129,4 +125,3 @@ object AlgebraUtil{
   }
 
 }
-

@@ -22,14 +22,14 @@ object SpectralLDA {
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
-                             stopWordFile: String =s"src/main/resources/Data/datasets/StopWords_common.txt",
-                             reducerMaxSizeInFlight:String=s"512m",//s"1g",
-                             executorMemory:String =s"1g",
-                             driveMemory:String =s"2g",
-                             shuffleFileBuffer:String =s"10m",//s"1g",
-                             driverMaxResultSize:String=s"2g",
-                             storageMemoryFraction:String=s"0.6",
-                             sparkRddCompress:String =s"false"
+                             stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt",
+                             reducerMaxSizeInFlight:String="512m",//"1g",
+                             executorMemory:String ="1g",
+                             driveMemory:String ="2g",
+                             shuffleFileBuffer:String ="10m",//"1g",
+                             driverMaxResultSize:String="2g",
+                             storageMemoryFraction:String="0.6",
+                             sparkRddCompress:String ="false"
                              ) extends AbstractParams[Params]
 
   def main(args: Array[String]) {
@@ -50,19 +50,19 @@ object SpectralLDA {
         .text(s"tolerance. default: ${defaultParams.tolerance}")
         .action((x, c) => c.copy(tolerance = x))
       opt[Double]("topicConcentration")
-        .text(s"amount of term (word) smoothing to use (> 1.0) (-1=auto)." +
+        .text("amount of term (word) smoothing to use (> 1.0) (-1=auto)." +
         s"  default: ${defaultParams.topicConcentration}")
         .action((x, c) => c.copy(topicConcentration = x))
       opt[Int]("vocabSize")
-        .text(s"number of distinct word types to use, chosen by frequency. (-1=all)" +
+        .text("number of distinct word types to use, chosen by frequency. (-1=all)" +
         s"  default: ${defaultParams.vocabSize}")
         .action((x, c) => c.copy(vocabSize = x))
       opt[Int]("synthetic")
-        .text(s"whether to use synthetic data or real text (0=real text, 1=synthetic data)" +
+        .text("whether to use synthetic data or real text (0=real text, 1=synthetic data)" +
         s"  default:${defaultParams.synthetic}")
         .action((x, c) => c.copy(synthetic = x))
       opt[String]("stopWordFile")
-        .text(s"filepath for a list of stopwords. Note: This must fit on a single machine." +
+        .text("filepath for a list of stopwords. Note: This must fit on a single machine." +
         s"  default: ${defaultParams.stopWordFile}")
         .action((x, c) => c.copy(stopWordFile = x))
       arg[String]("<input>...")
@@ -111,10 +111,10 @@ object SpectralLDA {
       println("Running real example.")
     }
     val preprocessStart: Long = System.nanoTime()
-	println("Generating a new SparkContext with "+ params.slices +" slices... ")
-    val conf: SparkConf = new SparkConf().setMaster("local" + "[" + params.slices + "]").set("spark.reducer.maxSizeInFlight",params.reducerMaxSizeInFlight).set("spark.executor.memory",params.executorMemory).set("spark.driver.memory",params.driveMemory).set("spark.driver.maxResultSize",params.driverMaxResultSize).set("spark.shuffle.file.buffer",params.shuffleFileBuffer).setAppName(s"Spectral LDA via Tensor Decomposition").set("spark.storage.memoryFraction",params.storageMemoryFraction).set("spark.rdd.compress",params.sparkRddCompress)
+        println("Generating a new SparkContext with "+ params.slices +" slices... ")
+    val conf: SparkConf = new SparkConf().setMaster("local" + "[" + params.slices + "]").set("spark.reducer.maxSizeInFlight",params.reducerMaxSizeInFlight).set("spark.executor.memory",params.executorMemory).set("spark.driver.memory",params.driveMemory).set("spark.driver.maxResultSize",params.driverMaxResultSize).set("spark.shuffle.file.buffer",params.shuffleFileBuffer).setAppName("Spectral LDA via Tensor Decomposition").set("spark.storage.memoryFraction",params.storageMemoryFraction).set("spark.rdd.compress",params.sparkRddCompress)
     val sc: SparkContext = new SparkContext(conf)
-	println("Generated the SparkConetxt")
+        println("Generated the SparkConetxt")
     val myTensorLDA: TensorLDA = new TensorLDA(sc, params.slices, //params.reducerMaxSizeInFlight, params.executorMemory,params.driveMemory,params.driverMaxResultSize,params.shuffleFileBuffer,params.storageMemoryFraction,params.sparkRddCompress,
       params.input, params.stopWordFile, params.synthetic, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
     println("Start ALS algorithm for tensor decomposition...")
@@ -130,7 +130,7 @@ object SpectralLDA {
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
     sc.stop()
     println()
-    println(s"Corpus summary:")
+    println("Corpus summary:")
     println(s"\t Training set size: $numDocs documents")
     println(s"\t Vocabulary size: $vocabSize terms")
     println(s"\t Model Training time: $preprocessElapsed sec")

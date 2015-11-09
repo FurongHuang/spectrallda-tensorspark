@@ -56,4 +56,3 @@ abstract class AbstractParams[T: TypeTag]() {
     }.mkString("{\n", ",\n", "\n}")
   }
 }
-
