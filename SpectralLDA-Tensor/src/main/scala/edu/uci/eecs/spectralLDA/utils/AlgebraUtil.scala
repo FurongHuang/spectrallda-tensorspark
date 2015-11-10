@@ -1,4 +1,4 @@
-package edu.icu.eecs.newport.spectralLDA.utils
+package edu.uci.eecs.spectralLDA.utils
 
 /**
  * Utils for algebric operations.

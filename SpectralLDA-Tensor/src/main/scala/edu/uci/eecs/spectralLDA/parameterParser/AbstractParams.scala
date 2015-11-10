@@ -1,4 +1,4 @@
-package edu.icu.eecs.newport.spectralLDA.parameterParser
+package edu.uci.eecs.spectralLDA.parameterParser
 
 /**
  * Created by furongh on 9/3/15.

@@ -1,4 +1,4 @@
-package edu.icu.eecs.newport.spectralLDA.accumulator
+package edu.uci.eecs.spectralLDA.accumulator
 
 import org.apache.spark.AccumulatorParam
 

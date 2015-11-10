@@ -1,12 +1,12 @@
- package edu.icu.eecs.newport.spectralLDA.algorithm
+ package edu.uci.eecs.spectralLDA.algorithm
 
  /**
  * Tensor Decomposition Algorithms.
  * Alternating Least Square algorithm is implemented.
  * Created by Furong Huang on 11/2/15.
  */
- import edu.icu.eecs.newport.spectralLDA.utils.AlgebraUtil
- import edu.icu.eecs.newport.spectralLDA.datamoments.DataCumulant
+ import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
+ import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
  import breeze.linalg.{DenseMatrix, DenseVector}
  import org.apache.spark.rdd.RDD
  import org.apache.spark.SparkContext
