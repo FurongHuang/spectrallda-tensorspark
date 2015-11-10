@@ -1,4 +1,4 @@
-package Accumulator
+package edu.icu.eecs.newport.spectralLDA.accumulator
 
 /**
  * Created by furongh on 11/2/15.

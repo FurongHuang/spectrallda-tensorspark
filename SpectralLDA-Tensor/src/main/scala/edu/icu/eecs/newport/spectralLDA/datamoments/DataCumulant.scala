@@ -1,12 +1,13 @@
-package DataMoments
+package edu.icu.eecs.newport.spectralLDA.datamoments
 
 /**
  * Data Cumulants Calculation.
  * Created by Furong Huang on 11/2/15.
  */
 
-import Accumulator.{DenseMatrixAccumulatorParam, DenseVectorAccumulatorParam}
-import Utils.AlgebraUtil
+import edu.icu.eecs.newport.spectralLDA.accumulator.DenseMatrixAccumulatorParam
+import edu.icu.eecs.newport.spectralLDA.accumulator.DenseVectorAccumulatorParam
+import edu.icu.eecs.newport.spectralLDA.utils.AlgebraUtil
 import breeze.linalg._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -22,6 +23,10 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
   println("Finished calculating first order moments.")
 
   val (thirdOrderMoments: DenseMatrix[Double], unwhiteningMatrix: DenseMatrix[Double]) = {
+    import scalaxy.loops._
+    import scala.language.postfixOps
+
+
     println("Start calculating second order moments...")
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = whiten(sc, alpha0, dimVocab, dimK, numDocs, firstOrderMoments, documents)
     println("Finished calculating second order moments and whitening matrix.")
@@ -39,9 +44,9 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
 
     val alpha0sq: Double = alpha0 * alpha0
     val Ta_shift = DenseMatrix.zeros[Double](dimK, dimK * dimK)
-    for (id_i: Int <- 0 until dimK) {
-      for (id_j: Int <- 0 until dimK) {
-        for (id_l: Int <- 0 until dimK) {
+    for (id_i <- 0 until dimK optimized) {
+      for (id_j <- 0 until dimK optimized) {
+        for (id_l <- 0 until dimK optimized) {
           Ta_shift(id_i, id_j * dimK + id_l) += alpha0sq * firstOrderMoments_whitened(id_i) * firstOrderMoments_whitened(id_j) * firstOrderMoments_whitened(id_l)
         }
       }
@@ -96,9 +101,11 @@ class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tol
     val scale2fac: Double = alpha0 * (alpha0 + 1.0) / (2.0 * len_calibrated * (len_calibrated - 1.0))
     val Ta = breeze.linalg.DenseMatrix.zeros[Double](dimK, dimK * dimK)
 
-    for (i: Int <- 0 until dimK) {
-      for (j: Int <- 0 until dimK) {
-        for (l: Int <- 0 until dimK) {
+    import scalaxy.loops._
+    import scala.language.postfixOps
+    for (i <- 0 until dimK optimized) {
+      for (j <- 0 until dimK optimized) {
+        for (l <- 0 until dimK optimized) {
           Ta(i, dimK * j + l) += scale3fac * Wc(i) * Wc(j) * Wc(l)
 
           Ta(i, dimK * j + l) -= scale2fac * Wc(i) * Wc(j) * m1(l)
