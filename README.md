@@ -61,9 +61,8 @@ for example:
 
 
 ### References ###
-* Project Page: http://newport.eecs.uci.edu/anandkumar/Lab/Lab_sub/community.html
-* Paper: http://newport.eecs.uci.edu/anandkumar/pubs/Huang_etal_communities_GPU.pdf
-* * F. Huang, U.N. Niranjan, M.U. Hakeem, A. Anandkumar, "Fast Detection of Overlapping Communities via Online Tensor Methods", JMLR 2014.
+* White Paper: http://newport.eecs.uci.edu/anandkumar/pubs/whitepaper.pdf
+* New York Times Result Visualization: http://newport.eecs.uci.edu/anandkumar/Lab/Lab_sub/NewYorkTimes3.html
 
 
 
