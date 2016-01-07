@@ -20,7 +20,7 @@ scalacOptions :=  Seq(
   "-Yinline"
 )
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1"
+libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
 
 libraryDependencies ++= Seq(
   "org.scalanlp" %% "breeze" % "0.11.2",
@@ -29,10 +29,10 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.nativelibs4java" %% "scalaxy-loops" % "0.3.4"
 
-libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1"
+libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided"
 
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
 
-libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.5.1"
+libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.5.1" % "provided"
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "3.3.0"
