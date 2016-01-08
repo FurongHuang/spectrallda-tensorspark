@@ -24,6 +24,7 @@ libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
 
 libraryDependencies ++= Seq(
   "org.scalanlp" %% "breeze" % "0.11.2",
+  "org.scalanlp" %% "breeze-natives" % "0.11.2",
   "org.scalanlp" %% "breeze-viz" % "0.11.2"
 )
 
@@ -36,3 +37,15 @@ libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
 libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.5.1" % "provided"
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "3.3.0"
+
+
+
+libraryDependencies += "com.github.fommil.netlib" % "all" % "1.1.2"
+
+
+resolvers ++= Seq(
+  // other resolvers here
+  // if you want to use snapshot builds (currently 0.12-SNAPSHOT), use this.
+  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+  "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
+)
