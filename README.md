@@ -9,9 +9,9 @@ This code implements a spectral (third order tensor decomposition) learning meth
 * install sbt
 * open your terminal
 * cd to SpectralLDA-Tensor
-* type: "sbt" (or "sbt -mem <Customized Memory>", e.g., "sbt -mem 40960")"
-)
-* In sbt, type: "run src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt --synthetic 1"
+* type: "sbt" 
+* type: "assembly". This will pack the class files and all the dependencies into a single fat JAR file. The path to the jar is: <PROJECT-PATH>/SpectralLDA-TensorSpark/SpectralLDA-Tensor/target/scala-2.10/SpectralLDA-Tensor-assembly-1.0.jar
+* deploy the application using [spark-submit](http://spark.apache.org/docs/latest/submitting-applications.html).  
 
 
 
@@ -25,11 +25,7 @@ Main file is SpectralLDA-Tensor/src/main/scala-2.10/SpectralLDA.scala
 
 * (1). Synthetic Experiments:
 
-> cd SpectralLDA-Tensor/
-
-> sbt
-
-> run src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt --synthetic 1
+> ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA --master local[2] --deploy-mode client <PROJECT-PATH>/SpectralLDA-TensorSpark/SpectralLDA-Tensor/target/scala-2.10/SpectralLDA-Tensor-assembly-1.0.jar <PROJECT-PATH>/SpectralLDA-TensorSpark/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt --synthetic 1 
 
 
 *    (1.1).  Data generation script in MATLAB is provided in the repository [here](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/data/SyntheticDataGenerator.m?at=master&fileviewer=file-view-default). One can play around with hyperparameters such as Sample Size, Vocabulary Size, Hidden Dimension, and How mixed the topics are.  The synthetic data for training are then generated as datasets/synthetic/samples_train_libsvm.txt and datasets/synthetic/samples_test_libsvm.txt in the libsvm format and as datasets/synthetic/samples_train_DOK.txt and datasets/synthetic/samples_test_DOK.txt in the DOK format. 
@@ -40,15 +36,7 @@ Main file is SpectralLDA-Tensor/src/main/scala-2.10/SpectralLDA.scala
 
 * (2). Real Experiments:
 
-> cd SpectralLDA-Tensor/
-
-> sbt -mem 1024
-
-> run <PATH_OF_YOUR_TEXT>
-
-for example:
-
-> run src/main/resources/Data/datasets/enron_email/corpus.txt
+> ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA --master local[2] --deploy-mode client <PROJECT-PATH>/SpectralLDA-TensorSpark/SpectralLDA-Tensor/target/scala-2.10/SpectralLDA-Tensor-assembly-1.0.jar <PROJECT-PATH>/SpectralLDA-TensorSpark/src/main/resources/Data/datasets/enron_email/corpus.txt
 
 *   (2.1).  Our program takes raw text (NOTE: Each text file line should hold 1 document). 
 
