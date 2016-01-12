@@ -21,7 +21,7 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
   val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {processDocuments_synthetic(paths, vocabSize)} else { processDocuments(paths, stopwordFile, vocabSize)}
   val numDocs: Long = documents.count()
   println("Finished reading data.")
-  private val myData: DataCumulant = new DataCumulant(sc, slices, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
+  private val myData: DataCumulant = new DataCumulant(sc, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
 
   def runALS(maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
     val myALS: ALS = new ALS(slices, dimK, myData)

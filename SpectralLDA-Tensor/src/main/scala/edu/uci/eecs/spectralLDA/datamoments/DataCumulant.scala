@@ -14,7 +14,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{Accumulator, SparkContext}
 import scala.collection.mutable
 
-class DataCumulant(sc: SparkContext, slices: Int, dimK: Int, alpha0: Double, tolerance: Double, documents:RDD[(Long, Double, SparseVector[Double])],dimVocab: Int,numDocs: Long ) extends Serializable {
+class DataCumulant(sc: SparkContext, dimK: Int, alpha0: Double, tolerance: Double, documents:RDD[(Long, Double, SparseVector[Double])],dimVocab: Int,numDocs: Long ) extends Serializable {
 
   private val M1: Accumulator[DenseVector[Double]] = sc.accumulator(breeze.linalg.DenseVector.zeros[Double](dimVocab))(DenseVectorAccumulatorParam)
   println("Start calculating first order moments...")

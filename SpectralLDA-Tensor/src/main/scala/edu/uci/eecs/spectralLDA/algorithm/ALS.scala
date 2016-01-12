@@ -14,7 +14,7 @@
  import scala.language.postfixOps
  import scala.util.control.Breaks._
 
-class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
+class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
   def run(sc:SparkContext, maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
     val T: breeze.linalg.DenseMatrix[Double] = myData.thirdOrderMoments
     val unwhiteningMatrix: DenseMatrix[Double] = myData.unwhiteningMatrix
@@ -33,7 +33,7 @@ class ALS(slices: Int, dimK: Int, myData: DataCumulant) extends Serializable{
     var mode: Int = 2
     var iter: Int = 0
     println("Pseudo RDD...")
-    val pseudoRDD = sc.parallelize(0 until dimK, slices)
+    val pseudoRDD = sc.parallelize(0 until dimK)
     println("Start ALS iterations...")
     breakable {
       while (maxIterations <= 0 || iter < maxIterations) {

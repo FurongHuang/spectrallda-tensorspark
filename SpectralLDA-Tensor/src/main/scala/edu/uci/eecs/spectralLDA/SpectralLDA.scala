@@ -113,7 +113,7 @@ object SpectralLDA {
       println("Running real example.")
     }
     val preprocessStart: Long = System.nanoTime()
-        println("Generating a new SparkContext with "+ params.slices +" slices... ")
+     //   println("Generating a new SparkContext with "+ params.slices +" slices... ")
     // val conf: SparkConf = new SparkConf().setMaster("local" + "[" + params.slices + "]").set("spark.reducer.maxSizeInFlight",params.reducerMaxSizeInFlight).set("spark.executor.memory",params.executorMemory).set("spark.driver.memory",params.driveMemory).set("spark.driver.maxResultSize",params.driverMaxResultSize).set("spark.shuffle.file.buffer",params.shuffleFileBuffer).setAppName("Spectral LDA via Tensor Decomposition").set("spark.storage.memoryFraction",params.storageMemoryFraction).set("spark.rdd.compress",params.sparkRddCompress)
     val conf: SparkConf = new SparkConf().setAppName("Spectral LDA via Tensor Decomposition")
     val sc: SparkContext = new SparkContext(conf)
