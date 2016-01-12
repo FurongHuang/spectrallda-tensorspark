@@ -24,7 +24,7 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
   private val myData: DataCumulant = new DataCumulant(sc, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
 
   def runALS(maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
-    val myALS: ALS = new ALS(slices, dimK, myData)
+    val myALS: ALS = new ALS(dimK, myData)
     myALS.run(sc, maxIterations)
   }
 
