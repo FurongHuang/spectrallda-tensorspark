@@ -16,11 +16,11 @@ import org.apache.log4j.{Level, Logger}
 object SpectralLDA {
   private case class Params(
                              input: Seq[String] = Seq.empty,//use this for customized input
-                             synthetic: Int = 0, //Note: for real texts set, set parameter "synthetic"=0 (default), use real text (per article per row) "SpectralLDA-Tensor/src/main/resources/Data/datasets/enron_email/corpus.txt"
+                             synthetic: Int = 1, //Note: for real texts set, set parameter "synthetic"=0 (default), use real text (per article per row) "SpectralLDA-Tensor/src/main/resources/Data/datasets/enron_email/corpus.txt"
                              // synthetic: Int = 1, //Note: for synthetic data, set parameter "synthetic"=1, use synthetic data "SpectralLDA-Tensor/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt"
                              slices: String = "2",
-                             k: Int = 2,
-                             maxIterations: Int = 100,
+                             k: Int = 20,
+                             maxIterations: Int = 10,
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,

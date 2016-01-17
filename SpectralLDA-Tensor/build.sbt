@@ -5,6 +5,8 @@ version := "1.0"
 scalaVersion := "2.10.5"
 crossScalaVersions := Seq("2.10.5", "2.11.7")
 
+ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+
 scalacOptions :=  Seq(
   "-unchecked",
   "-feature",
@@ -20,7 +22,6 @@ scalacOptions :=  Seq(
   "-Yinline"
 )
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
 
 libraryDependencies ++= Seq(
   "org.scalanlp" %% "breeze" % "0.11.2",
@@ -30,17 +31,43 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.nativelibs4java" %% "scalaxy-loops" % "0.3.4"
 
-libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided"
-
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.0"
-
-libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.5.1" % "provided"
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "3.3.0"
 
-
-
 libraryDependencies += "com.github.fommil.netlib" % "all" % "1.1.2"
+
+
+
+{
+  val defaultSparkVersion = "1.5.1"
+  val sparkVersion =
+    scala.util.Properties.envOrElse("SPARK_VERSION", defaultSparkVersion)
+  val excludeHadoop = ExclusionRule(organization = "org.apache.hadoop")
+  val excludeSpark = ExclusionRule(organization = "org.apache.spark")
+  libraryDependencies ++= Seq(
+    "org.apache.spark" % "spark-core_2.10" % sparkVersion excludeAll(excludeHadoop),
+    "org.apache.spark" % "spark-mllib_2.10" % sparkVersion excludeAll(excludeHadoop),
+    "org.apache.spark" % "spark-sql_2.10" % sparkVersion excludeAll(excludeHadoop)
+  )
+}
+
+{
+  val defaultHadoopVersion = "0.20.2-cdh3u6"
+  val hadoopVersion =
+    scala.util.Properties.envOrElse("SPARK_HADOOP_VERSION", defaultHadoopVersion)
+  libraryDependencies += "org.apache.hadoop" % "hadoop-client" % hadoopVersion
+}
+
+
+resolvers ++= Seq(
+  "Local Maven Repository" at Path.userHome.asFile.toURI.toURL + ".m2/repository",
+  "Typesafe" at "http://repo.typesafe.com/typesafe/releases",
+  "Cloudera Repository" at "https://repository.cloudera.com/artifactory/cloudera-repos/",
+  "Spray" at "http://repo.spray.cc"
+)
+
+resolvers += Resolver.sonatypeRepo("public")
 
 
 resolvers ++= Seq(
@@ -49,6 +76,8 @@ resolvers ++= Seq(
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
   "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 )
+
+
 
 mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
   {
@@ -63,4 +92,3 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
     case _ => MergeStrategy.first
   }
 }
-

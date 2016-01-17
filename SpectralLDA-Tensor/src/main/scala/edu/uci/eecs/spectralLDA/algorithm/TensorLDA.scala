@@ -14,11 +14,17 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import scala.collection.mutable
 import scala.util.control.Breaks._
+import org.apache.spark.storage.StorageLevel
 
 class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, synthetic: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
   private val slices:Int = slices_string.toInt
   println("Start reading data...")
-  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {processDocuments_synthetic(paths, vocabSize)} else { processDocuments(paths, stopwordFile, vocabSize)}
+  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {
+  processDocuments_synthetic(paths, vocabSize)
+  } 
+  else { 
+  processDocuments(paths, stopwordFile, vocabSize)
+  }
   val numDocs: Long = documents.count()
   println("Finished reading data.")
   private val myData: DataCumulant = new DataCumulant(sc, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
@@ -27,8 +33,6 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
     val myALS: ALS = new ALS(dimK, myData)
     myALS.run(sc, maxIterations)
   }
-
-
 
 
   private def processDocuments(paths: Seq[String], stopwordFile: String, vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) = {
@@ -89,18 +93,72 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
     (mydocuments, vocabarray, vocab.size)
   }
 
-  private def processDocuments_synthetic(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, SparseVector[Double])], Array[String], Int) ={
+  private def processDocuments_synthetic(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) ={
     val mypath: String = paths.mkString(",")
     println(mypath)
-    val mylabeledpoints: RDD[LabeledPoint] = MLUtils.loadLibSVMFile(sc, mypath)
-    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = mylabeledpoints.map { f =>
-      val sparseFeats = f.features.toSparse
-      (f.label.toLong, sparseFeats.values.sum, new breeze.linalg.SparseVector[Double](sparseFeats.indices, sparseFeats.values, sparseFeats.size))
-    }
+    // val mylabeledpoints: RDD[LabeledPoint] = MLUtils.loadLibSVMFile(sc, mypath)
+    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, mypath)//mylabeledpoints.map { f =>
+    //  val sparseFeats: org.apache.spark.mllib.linalg.SparseVector  = f.features.toSparse
+    //  (f.label.toLong, sparseFeats.values.sum, new breeze.linalg.SparseVector[Double](sparseFeats.indices, sparseFeats.values, sparseFeats.size))
+    //}
     // val mydocuments_collected: Array[(Long, Double, SparseVector[Double])] = mydocuments.collect()
     val vocabsize = mydocuments.collect()(0)._3.length
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)
     (mydocuments, vocabarray, vocabsize)
   }
+  
+  private def loadLibSVMFile2sparseVector(
+        sc: SparkContext,
+        path: String,
+        numFeatures: Int,
+        minPartitions: Int): RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = {
+    val parsed = sc.textFile(path, minPartitions)
+      .map(_.trim)
+      .filter(line => !(line.isEmpty || line.startsWith("#")))
+      .map { line =>
+        val items = line.split(' ')
+        val label = items.head.toDouble.toLong
+        val (indices, values) = items.tail.filter(_.nonEmpty).map { item =>
+          val indexAndValue = item.split(':')
+          val index = indexAndValue(0).toInt - 1 // Convert 1-based indices to 0-based.
+          val value = indexAndValue(1).toDouble
+          (index, value)
+        }.unzip
+
+
+        (label, indices.toArray, values.toArray)
+      }
+
+    // Determine number of features.
+    val d = if (numFeatures > 0) {
+      numFeatures
+    } else {
+      parsed.persist(StorageLevel.MEMORY_ONLY)
+      parsed.map { case (label, indices, values) =>
+        indices.lastOption.getOrElse(0)
+      }.reduce(math.max) + 1
+    }
+
+    parsed.map { case (label, indices, values) =>
+      // LabeledPoint(label, Vectors.sparse(d, indices, values))
+      val myDoubleZero:Double = 0.0
+      val mySparseArray:breeze.collection.mutable.SparseArray[Double] =new  breeze.collection.mutable.SparseArray[Double](indices,values,indices.size,d,myDoubleZero)
+      (label, values.sum, new breeze.linalg.SparseVector[Double](indices, values, d))
+    }
+  }
+  
+  private def loadLibSVMFile2sparseVector(
+      sc: SparkContext,
+      path: String,
+      multiclass: Boolean,
+      numFeatures: Int,
+      minPartitions: Int): RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, numFeatures, minPartitions)
+    
+  private def loadLibSVMFile2sparseVector(
+      sc: SparkContext,
+      path: String,
+      numFeatures: Int): RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, numFeatures, sc.defaultMinPartitions)
+    
+  private def loadLibSVMFile2sparseVector(sc: SparkContext, path: String): RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, -1)
 
 }
