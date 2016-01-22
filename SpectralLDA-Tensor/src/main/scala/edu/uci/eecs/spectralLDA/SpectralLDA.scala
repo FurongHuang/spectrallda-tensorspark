@@ -12,6 +12,7 @@ import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
 import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.rdd.RDD
 
 object SpectralLDA {
   private case class Params(

@@ -29,6 +29,8 @@ import org.apache.spark.SparkContext
 
 import scala.collection.mutable
 
+import org.apache.spark.rdd.RDD
+
 class SimpleTokenizer(sc: SparkContext, stopwordFile: String) extends Serializable {
 
   private val stopwords: Set[String] = if (stopwordFile.isEmpty) {

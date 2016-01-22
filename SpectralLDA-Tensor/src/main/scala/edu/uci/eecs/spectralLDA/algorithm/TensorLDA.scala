@@ -16,6 +16,7 @@ import scala.collection.mutable
 import scala.util.control.Breaks._
 import org.apache.spark.storage.StorageLevel
 
+
 class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, synthetic: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
   private val slices:Int = slices_string.toInt
   println("Start reading data...")
