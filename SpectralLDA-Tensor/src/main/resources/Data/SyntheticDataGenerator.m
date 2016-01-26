@@ -1,7 +1,7 @@
 clear;clc;
 %% Data Specs
-n =1000;       % Sample Size
-d =100;         % Vocabulary Size
+n =10000;       % Sample Size
+d =500;         % Vocabulary Size
 k =2;           % Hidden Dimension
 alpha0 =0.001;   % How mixed the topics are
 n_test = 10;
@@ -50,31 +50,6 @@ for index_row = 1: size(beta,1)
 end
 fclose(fid);
 
-%% write synthetic data in the bag of words format
-fid = fopen('datasets/synthetic/samples_train_DOK.txt','wt');
-for index_doc = 1 : n
-	currentCount = Counts(index_doc,:);
-	for index_word = 1:d
-		thisCount = currentCount(index_word);
-		if (thisCount ~= 0)
-			fprintf(fid, '%d %d %d\n', index_doc-1, index_word-1, thisCount);
-		end
-	end
-end
-fclose(fid);
-
-fid = fopen('datasets/synthetic/samples_test_DOK.txt','wt');
-for index_doc = 1 : n_test
-	currentCount = Counts(index_doc,:);
-	for index_word = 1:d
-		thisCount = currentCount(index_word);
-		if (thisCount ~= 0)
-			fprintf(fid, '%d %d %d\n', index_doc-1, index_word-1, thisCount);
-		end
-	end
-end
-fclose(fid);
-
 
 % docID wordID:counts
 fid = fopen('datasets/synthetic/samples_train_libsvm.txt','wt');
@@ -104,3 +79,31 @@ for index_doc = 1: n_test
     fprintf(fid, '\n');
 end
 fclose(fid);
+
+
+%% write synthetic data in the bag of words format
+% fid = fopen('datasets/synthetic/samples_train_DOK.txt','wt');
+% for index_doc = 1 : n
+% 	currentCount = Counts(index_doc,:);
+% 	for index_word = 1:d
+% 		thisCount = currentCount(index_word);
+% 		if (thisCount ~= 0)
+% 			fprintf(fid, '%d %d %d\n', index_doc-1, index_word-1, thisCount);
+% 		end
+% 	end
+% end
+% fclose(fid);
+
+% fid = fopen('datasets/synthetic/samples_test_DOK.txt','wt');
+% for index_doc = 1 : n_test
+% 	currentCount = Counts(index_doc,:);
+% 	for index_word = 1:d
+% 		thisCount = currentCount(index_word);
+% 		if (thisCount ~= 0)
+% 			fprintf(fid, '%d %d %d\n', index_doc-1, index_word-1, thisCount);
+% 		end
+% 	end
+% end
+% fclose(fid);
+
+

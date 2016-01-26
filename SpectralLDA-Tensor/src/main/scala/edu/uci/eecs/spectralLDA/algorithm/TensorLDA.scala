@@ -17,11 +17,11 @@ import scala.util.control.Breaks._
 import org.apache.spark.storage.StorageLevel
 
 
-class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, synthetic: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
+class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, libsvm: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
   private val slices:Int = slices_string.toInt
   println("Start reading data...")
-  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (synthetic == 1) {
-  processDocuments_synthetic(paths, vocabSize)
+  val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (libsvm == 1) {
+  processDocuments_libsvm(paths, vocabSize)
   } 
   else { 
   processDocuments(paths, stopwordFile, vocabSize)
@@ -94,15 +94,10 @@ class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stop
     (mydocuments, vocabarray, vocab.size)
   }
 
-  private def processDocuments_synthetic(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) ={
+  private def processDocuments_libsvm(paths: Seq[String], vocabSize: Int): (RDD[(Long, Double, breeze.linalg.SparseVector[Double])], Array[String], Int) ={
     val mypath: String = paths.mkString(",")
     println(mypath)
-    // val mylabeledpoints: RDD[LabeledPoint] = MLUtils.loadLibSVMFile(sc, mypath)
-    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, mypath)//mylabeledpoints.map { f =>
-    //  val sparseFeats: org.apache.spark.mllib.linalg.SparseVector  = f.features.toSparse
-    //  (f.label.toLong, sparseFeats.values.sum, new breeze.linalg.SparseVector[Double](sparseFeats.indices, sparseFeats.values, sparseFeats.size))
-    //}
-    // val mydocuments_collected: Array[(Long, Double, SparseVector[Double])] = mydocuments.collect()
+    val mydocuments: RDD[(Long, Double, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, mypath)
     val vocabsize = mydocuments.collect()(0)._3.length
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)
     (mydocuments, vocabarray, vocabsize)
