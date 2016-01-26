@@ -17,8 +17,7 @@ import scala.util.control.Breaks._
 import org.apache.spark.storage.StorageLevel
 
 
-class TensorLDA(sc:SparkContext, slices_string: String, paths: Seq[String], stopwordFile: String, libsvm: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
-  private val slices:Int = slices_string.toInt
+class TensorLDA(sc:SparkContext, paths: Seq[String], stopwordFile: String, libsvm: Int, vocabSize: Int, dimK: Int,alpha0: Double, tolerance: Double) extends Serializable{
   println("Start reading data...")
   val (documents: RDD[(Long, Double, SparseVector[Double])], vocabArray: Array[String], dimVocab: Int) = if (libsvm == 1) {
   processDocuments_libsvm(paths, vocabSize)

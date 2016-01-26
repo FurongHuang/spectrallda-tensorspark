@@ -109,7 +109,7 @@ object SpectralLDA {
     val conf: SparkConf = new SparkConf().setAppName("Spectral LDA via Tensor Decomposition")
     val sc: SparkContext = new SparkContext(conf)
         println("Generated the SparkConetxt")
-    val myTensorLDA: TensorLDA = new TensorLDA(sc, params.slices, params.input, params.stopWordFile, params.libsvm, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
+    val myTensorLDA: TensorLDA = new TensorLDA(sc, params.input, params.stopWordFile, params.libsvm, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
     println("Start ALS algorithm for tensor decomposition...")
 
     val (beta, alpha) = myTensorLDA.runALS(params.maxIterations)
