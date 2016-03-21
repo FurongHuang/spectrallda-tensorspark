@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
+	<info organisation="spectrallda-tensor"
+		module="spectrallda-tensor_2.10"
+		revision="1.0"
+		status="integration"
+		publication="20160321153837"
+	>
+		<description>
+		SpectralLDA-Tensor
+		</description>
+	</info>
+	<configurations>
+		<conf name="compile" visibility="public" description=""/>
+		<conf name="runtime" visibility="public" description="" extends="compile"/>
+		<conf name="test" visibility="public" description="" extends="runtime"/>
+		<conf name="provided" visibility="public" description=""/>
+		<conf name="optional" visibility="public" description=""/>
+		<conf name="compile-internal" visibility="private" description="" extends="compile,optional,provided"/>
+		<conf name="runtime-internal" visibility="private" description="" extends="runtime,optional"/>
+		<conf name="test-internal" visibility="private" description="" extends="test,optional,provided"/>
+		<conf name="plugin" visibility="private" description=""/>
+		<conf name="sources" visibility="public" description=""/>
+		<conf name="docs" visibility="public" description=""/>
+		<conf name="pom" visibility="public" description=""/>
+		<conf name="scala-tool" visibility="private" description=""/>
+	</configurations>
+	<publications>
+		<artifact name="spectrallda-tensor_2.10" type="pom" ext="pom" conf="pom"/>
+		<artifact name="spectrallda-tensor_2.10" type="jar" ext="jar" conf="compile"/>
+		<artifact name="spectrallda-tensor_2.10" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		<artifact name="spectrallda-tensor_2.10" type="doc" ext="jar" conf="docs" e:classifier="javadoc"/>
+	</publications>
+	<dependencies>
+		<dependency org="org.scala-lang" name="scala-compiler" rev="2.10.5" conf="scala-tool->default,optional(default)"/>
+		<dependency org="org.scala-lang" name="scala-library" rev="2.10.5" conf="scala-tool->default,optional(default);compile->default(compile)"/>
+		<dependency org="org.scalanlp" name="breeze_2.10" rev="0.11.2" conf="compile->default(compile)"/>
+		<dependency org="org.scalanlp" name="breeze-natives_2.10" rev="0.11.2" conf="compile->default(compile)"/>
+		<dependency org="org.scalanlp" name="breeze-viz_2.10" rev="0.11.2" conf="compile->default(compile)"/>
+		<dependency org="com.nativelibs4java" name="scalaxy-loops_2.10" rev="0.3.4" conf="compile->default(compile)"/>
+		<dependency org="org.apache.commons" name="commons-math3" rev="3.0" conf="compile->default(compile)"/>
+		<dependency org="com.github.scopt" name="scopt_2.10" rev="3.3.0" conf="compile->default(compile)"/>
+		<dependency org="com.github.fommil.netlib" name="all" rev="1.1.2" conf="compile->default(compile)"/>
+		<dependency org="org.apache.spark" name="spark-core_2.10" rev="1.5.1" conf="compile->default(compile)">
+			<exclude org="org.apache.hadoop" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
+		</dependency>
+		<dependency org="org.apache.spark" name="spark-mllib_2.10" rev="1.5.1" conf="compile->default(compile)">
+			<exclude org="org.apache.hadoop" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
+		</dependency>
+		<dependency org="org.apache.spark" name="spark-sql_2.10" rev="1.5.1" conf="compile->default(compile)">
+			<exclude org="org.apache.hadoop" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
+		</dependency>
+		<dependency org="org.apache.hadoop" name="hadoop-client" rev="0.20.2-cdh3u6" conf="compile->default(compile)"/>
+		<override org="org.scala-lang" module="scala-library" matcher="exact" rev="2.10.5"/>
+		<override org="org.scala-lang" module="scala-compiler" matcher="exact" rev="2.10.5"/>
+		<override org="org.scala-lang" module="scala-reflect" matcher="exact" rev="2.10.5"/>
+	</dependencies>
+</ivy-module>
