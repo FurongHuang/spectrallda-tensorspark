@@ -1,4 +1,4 @@
-/**
+ /**
  * Learning LDA model through inverse method of moments (moment matching).
  * Decomposition of third order moment (tensor) finds the model parameter.
  * Created by Furong Huang on 11/2/15.
@@ -18,10 +18,9 @@ import java.io._
 object SpectralLDA {
   private case class Params(
                              input: Seq[String] = Seq.empty,//use this for customized input
-                             libsvm: Int = 1, //Note: for real texts set, set parameter "libsvm"=0 (default), use real text (per article per row) 
-                             slices: String = "2",
+                             libsvm: Int = 1, //Note: for real texts set, set parameter "libsvm"=0 (default), use real text (per article per row)
                              k: Int = 20,
-                             maxIterations: Int = 10,
+                             maxIterations: Int = 1000,
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
@@ -33,9 +32,6 @@ object SpectralLDA {
 
     val parser: OptionParser[Params] = new OptionParser[Params]("LDA Example") {
       head("Tensor Factorization Step 1: reading corpus from plain text data.")
-      opt[String]("slices")
-        .text(s"number of workers. default: ${defaultParams.slices}")
-        .action((x, c) => c.copy(slices = x))
       opt[Int]("k")
         .text(s"number of topics. default: ${defaultParams.k}")
         .action((x, c) => c.copy(k = x))
@@ -69,43 +65,16 @@ object SpectralLDA {
         .action((x, c) => c.copy(input = c.input :+ x))
     }
 
-	val applicationStart: Long = System.nanoTime()
     val (corpus: Array[(Long, Double, SparseVector[Double])], vocabArray: Array[String], beta: DenseMatrix[Double], alpha:DenseVector[Double]) = parser.parse(args, defaultParams).map { params =>
       run(params)
     }.getOrElse {
       parser.showUsageAsError
       sys.exit(1)
     }
-    
-    val applicationElapsed: Double = (System.nanoTime() - applicationStart) / 1e9
-    
-    {
-	  //time
-	  val writer_time = new PrintWriter(new File("runningTime.txt"))
-      writer_time.write(s"\t application running time: $applicationElapsed sec")
-      writer_time.close()
-      
-      
-      println()
-      println("Learning done. Writing topic word matrix (beta) and topic proportions (alpha)... ")
-      // beta
-      breeze.linalg.csvwrite(new File("beta.txt"), beta, separator = ' ')
-      //alpha
-      // println(alpha.map(x => math.abs(x/alpha0Estimate*defaultParams.topicConcentration)))
-      val alpha0Estimate:Double = breeze.linalg.sum(alpha)
-      val writer_alpha = new PrintWriter(new File("alpha.txt" ))      
-      var i = 0
-      for( i <- 0 to alpha.length-1){
-         writer_alpha.write(s"$alpha(i)/alpha0Estimate*defaultParams.topicConcentration \t")
-      }
-      writer_alpha.close()
-      
-      
-    }
   }
 
 
-  private def run(params: Params): (Array[(Long, Double, SparseVector[Double])], Array[String], DenseMatrix[Double], DenseVector[Double]) = {
+ private def run(params: Params): (Array[(Long, Double, SparseVector[Double])], Array[String], DenseMatrix[Double], DenseVector[Double]) = {
 
     Logger.getRootLogger.setLevel(Level.WARN)
     if (params.libsvm == 1) {
@@ -114,8 +83,10 @@ object SpectralLDA {
     else {
       println("Converting raw text to libsvm format.")
     }
+
+    val applicationStart: Long = System.nanoTime()
     val preprocessStart: Long = System.nanoTime()
-    val conf: SparkConf = new SparkConf().setAppName("Spectral LDA via Tensor Decomposition")
+    val conf: SparkConf = new SparkConf().setAppName(s"Spectral LDA via Tensor Decomposition: $params")
     val sc: SparkContext = new SparkContext(conf)
         println("Generated the SparkConetxt")
     val myTensorLDA: TensorLDA = new TensorLDA(sc, params.input, params.stopWordFile, params.libsvm, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
@@ -137,7 +108,34 @@ object SpectralLDA {
     println(s"\t Vocabulary size: $vocabSize terms")
     println(s"\t Model Training time: $preprocessElapsed sec")
     println()
+    val applicationElapsed: Double = (System.nanoTime() - applicationStart) / 1e9
+
+
+//time
+      val writer_time = new PrintWriter(new File(s"runningTime.txt"))
+      writer_time.write(s"$applicationElapsed sec")
+      writer_time.close()
+
+
+      println()
+      println("Learning done. Writing topic word matrix (beta) and topic proportions (alpha)... ")
+
+// beta
+      breeze.linalg.csvwrite(new File(s"beta.txt"), beta, separator = ' ')
+
+  //alpha
+      // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
+      val alpha0Estimate:Double = breeze.linalg.sum(alpha)
+      val writer_alpha = new PrintWriter(new File(s"alpha.txt" ))
+      var i = 0
+      for( i <- 0 to alpha.length-1){
+        var thisAlpha: Double = alpha(i)/alpha0Estimate*params.topicConcentration
+         writer_alpha.write(s"$thisAlpha \t")
+      }
+      writer_alpha.close()
     (corpus_collection, vocabArray, beta, alpha)
-  }
+   }
 
 }
+
+                                                                               142,0-1       Bot
