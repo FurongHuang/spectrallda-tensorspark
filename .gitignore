@@ -1,3 +1,4 @@
+.idea/
 target/
 
 SpectralLDA-Tensor/src/main/scala/edu/uci/eecs/spectralLDA/LDAExample.scala
