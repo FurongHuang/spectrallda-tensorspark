@@ -20,21 +20,20 @@ This will pack the class files and all the dependencies into a single fat JAR fi
 ### Configuration 
 
 1. Synthetic Experiments:
-
 ```bash
 ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA --master local[2] --deploy-mode client <PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar <PROJECT-PATH>/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt --libsvm 1 
 ```
-    (1.1) Data generation script in MATLAB is provided in the repository [here](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/data/SyntheticDataGenerator.m?at=master&fileviewer=file-view-default). One can play around with hyperparameters such as Sample Size, Vocabulary Size, Hidden Dimension, and How mixed the topics are.  The synthetic data for training are then generated as `datasets/synthetic/samples_train_libsvm.txt` and `datasets/synthetic/samples_test_libsvm.txt` in the libsvm format and as `datasets/synthetic/samples_train_DOK.txt` and `datasets/synthetic/samples_test_DOK.txt` in the DOK format. 
 
-    (1.2) Our program reads libsvm format.
+    1. Data generation script in MATLAB is provided in the repository [here](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/data/SyntheticDataGenerator.m?at=master&fileviewer=file-view-default). One can play around with hyperparameters such as Sample Size, Vocabulary Size, Hidden Dimension, and How mixed the topics are.  The synthetic data for training are then generated as `datasets/synthetic/samples_train_libsvm.txt` and `datasets/synthetic/samples_test_libsvm.txt` in the libsvm format and as `datasets/synthetic/samples_train_DOK.txt` and `datasets/synthetic/samples_test_DOK.txt` in the DOK format. 
+
+    2. Our program reads libsvm format.
 
 2. Real Experiments:
-
 ```bash
 ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA --master local[2] --deploy-mode client <PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar <PROJECT-PATH>/src/main/resources/Data/datasets/enron_email/corpus.txt
 ```
 
-    (2.1) Our program takes raw text (NOTE: Each text file line should hold 1 document). 
+    1. Our program takes raw text (NOTE: Each text file line should hold 1 document). 
 
 ### Dependencies
 
