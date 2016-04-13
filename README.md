@@ -7,11 +7,11 @@
 
 ## Run a Synthetic Experiment Toy Example
 * install `sbt`
-* open your terminal
+* open your terminal:
     ```bash
     cd SpectralLDA-TensorSpark
     sbt "+ assembly"
-    ```
+    ```    
     This will pack the class files and all the dependencies into a single fat JAR file for both Scala 2.10 and 2.11. The path to the jar is: `<PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar`
 * deploy the application using [spark-submit](http://spark.apache.org/docs/latest/submitting-applications.html).  
 
