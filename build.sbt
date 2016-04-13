@@ -46,9 +46,9 @@ libraryDependencies += "com.github.fommil.netlib" % "all" % "1.1.2"
   val excludeHadoop = ExclusionRule(organization = "org.apache.hadoop")
   val excludeSpark = ExclusionRule(organization = "org.apache.spark")
   libraryDependencies ++= Seq(
-    "org.apache.spark" % "spark-core_2.10" % sparkVersion excludeAll(excludeHadoop),
-    "org.apache.spark" % "spark-mllib_2.10" % sparkVersion excludeAll(excludeHadoop),
-    "org.apache.spark" % "spark-sql_2.10" % sparkVersion excludeAll(excludeHadoop)
+    "org.apache.spark" %% "spark-core" % sparkVersion excludeAll(excludeHadoop),
+    "org.apache.spark" %% "spark-mllib" % sparkVersion excludeAll(excludeHadoop),
+    "org.apache.spark" %% "spark-sql" % sparkVersion excludeAll(excludeHadoop)
   )
 }
 
