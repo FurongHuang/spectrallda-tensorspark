@@ -27,7 +27,11 @@ class TensorLDA(sc:SparkContext, paths: Seq[String], stopwordFile: String, libsv
   }
   val numDocs: Long = documents.count()
   println("Finished reading data.")
-  private val myData: DataCumulant = new DataCumulant(sc, dimK, alpha0, tolerance, documents,dimVocab,numDocs)
+  private val myData: DataCumulant = DataCumulant.getDataCumulant(sc,
+    dimK, alpha0,
+    tolerance,
+    documents,
+    dimVocab, numDocs)
 
   def runALS(maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
     val myALS: ALS = new ALS(dimK, myData)

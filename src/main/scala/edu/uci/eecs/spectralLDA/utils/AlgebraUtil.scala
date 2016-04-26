@@ -5,7 +5,9 @@ package edu.uci.eecs.spectralLDA.utils
  * Created by furongh on 11/2/15.
  */
 
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg._
+import breeze.numerics._
+
 import scalaxy.loops._
 import scala.language.postfixOps
 
@@ -60,9 +62,10 @@ object AlgebraUtil{
 
   def matrixNormalization(B: DenseMatrix[Double]): DenseMatrix[Double] = {
     val A: DenseMatrix[Double] = B.copy
+    val colNorms: DenseVector[Double] = sqrt(diag(A.t * A))
+
     for (i <- 0 until A.cols optimized) {
-      val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
-      A(::, i) :*= (if (thisnorm > TOLERANCE) (1.0 / thisnorm) else TOLERANCE)
+      A(::, i) :*= (if (colNorms(i) > TOLERANCE) (1.0 / colNorms(i)) else TOLERANCE)
     }
     return A
   }
