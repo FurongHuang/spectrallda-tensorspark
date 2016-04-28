@@ -28,7 +28,6 @@ import org.apache.spark.mllib.clustering.{DistributedLDAModel, EMLDAOptimizer, L
 import org.apache.spark.mllib.linalg.{Vector,Vectors}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
-import edu.uci.eecs.spectralLDA.parameterParser.AbstractParams
 import org.apache.spark.storage.StorageLevel
 
 /**
@@ -51,7 +50,7 @@ object LDAExample {
       stopwordFile: String = "",
       algorithm: String = "em",
       checkpointDir: Option[String] = None,
-      checkpointInterval: Int = 10) extends AbstractParams[Params]
+      checkpointInterval: Int = 10)
 
   def main(args: Array[String]) {
     val defaultParams = Params()
