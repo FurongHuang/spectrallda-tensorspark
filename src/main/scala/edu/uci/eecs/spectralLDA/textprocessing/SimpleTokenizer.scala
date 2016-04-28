@@ -1,4 +1,4 @@
-package edu.uci.eecs.spectralLDA.textProcess
+package edu.uci.eecs.spectralLDA.textprocessing
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more

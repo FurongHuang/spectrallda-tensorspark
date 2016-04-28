@@ -5,7 +5,7 @@ package edu.uci.eecs.spectralLDA.algorithm
  * Alternating Least Square algorithm is implemented.
  * Created by Furong Huang on 11/2/15.
  */
-import edu.uci.eecs.spectralLDA.textProcess.SimpleTokenizer
+import edu.uci.eecs.spectralLDA.textprocessing.SimpleTokenizer
 import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
 import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
 import org.apache.spark.mllib.regression.LabeledPoint
