@@ -33,10 +33,12 @@ scalacOptions :=  Seq(
 //  "org.scalanlp" %% "breeze-natives" % "[0.11.2,)"
 //)
 
-libraryDependencies += "com.nativelibs4java" %% "scalaxy-loops" % "[0.3.4,)"
-
-libraryDependencies += "com.github.scopt" %% "scopt" % "[3.3.0,)"
-
+libraryDependencies ++= Seq(
+    "com.nativelibs4java" %% "scalaxy-loops" % "[0.3.4,)",
+    "com.github.scopt" %% "scopt" % "[3.3.0,)",
+    "org.scalatest" %% "scalatest" % "[2.2.6,)" % "test",
+    "org.scalatest" %% "scalatest-matchers" % "[2.2.6,)" % "test"
+)
 
 
 {
