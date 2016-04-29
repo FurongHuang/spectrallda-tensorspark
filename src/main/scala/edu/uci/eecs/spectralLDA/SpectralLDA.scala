@@ -7,7 +7,6 @@
 package edu.uci.eecs.spectralLDA
 
 import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
-import edu.uci.eecs.spectralLDA.parameterParser.AbstractParams
 import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
 import scopt.OptionParser
@@ -25,7 +24,7 @@ object SpectralLDA {
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
                              stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt"
-                          ) extends AbstractParams[Params]
+                          )
 
   def main(args: Array[String]) {
     val defaultParams = Params()

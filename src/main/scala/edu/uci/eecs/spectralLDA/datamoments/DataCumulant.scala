@@ -5,13 +5,11 @@ package edu.uci.eecs.spectralLDA.datamoments
  * Created by Furong Huang on 11/2/15.
  */
 
-import edu.uci.eecs.spectralLDA.accumulator.DenseMatrixAccumulatorParam
-import edu.uci.eecs.spectralLDA.accumulator.DenseVectorAccumulatorParam
 import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
 import breeze.linalg._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{Accumulator, SparkContext}
+import org.apache.spark.SparkContext
 import scala.collection.mutable
 
 import scalaxy.loops._
