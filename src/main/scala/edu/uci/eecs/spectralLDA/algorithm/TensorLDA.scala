@@ -11,8 +11,8 @@ import org.apache.spark.rdd.RDD
 
 class TensorLDA(dimK: Int,
                 alpha0: Double,
-                maxIterations: Int,
-                tolerance: Double) extends Serializable {
+                maxIterations: Int = 1000,
+                tolerance: Double = 1e-9) extends Serializable {
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
           : (DenseMatrix[Double], DenseVector[Double]) = {
