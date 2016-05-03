@@ -7,6 +7,7 @@
 package edu.uci.eecs.spectralLDA
 
 import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
+import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
 import scopt.OptionParser
@@ -64,7 +65,7 @@ object SpectralLDA {
         .action((x, c) => c.copy(input = c.input :+ x))
     }
 
-    val (corpus: Array[(Long, Double, SparseVector[Double])], vocabArray: Array[String], beta: DenseMatrix[Double], alpha:DenseVector[Double]) = parser.parse(args, defaultParams).map { params =>
+    val (corpus: RDD[(Long, SparseVector[Double])], vocabArray: Array[String], beta: DenseMatrix[Double], alpha:DenseVector[Double]) = parser.parse(args, defaultParams).map { params =>
       run(params)
     }.getOrElse {
       parser.showUsageAsError
@@ -73,7 +74,7 @@ object SpectralLDA {
   }
 
 
- private def run(params: Params): (Array[(Long, Double, SparseVector[Double])], Array[String], DenseMatrix[Double], DenseVector[Double]) = {
+  private def run(params: Params): (RDD[(Long, SparseVector[Double])], Array[String], DenseMatrix[Double], DenseVector[Double]) = {
 
     Logger.getRootLogger.setLevel(Level.WARN)
     if (params.libsvm == 1) {
@@ -85,55 +86,65 @@ object SpectralLDA {
 
     val applicationStart: Long = System.nanoTime()
     val preprocessStart: Long = System.nanoTime()
+
     val conf: SparkConf = new SparkConf().setAppName(s"Spectral LDA via Tensor Decomposition: $params")
     val sc: SparkContext = new SparkContext(conf)
-        println("Generated the SparkConetxt")
-    val myTensorLDA: TensorLDA = new TensorLDA(sc, params.input, params.stopWordFile, params.libsvm, params.vocabSize, params.k, params.topicConcentration, params.tolerance)
+    println("Generated the SparkConetxt")
+
+    println("Start reading data...")
+    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = if (params.libsvm == 1) {
+      TextProcessor.processDocuments_libsvm(sc, params.input, params.vocabSize)
+    }
+    else {
+      TextProcessor.processDocuments(sc, params.input, params.stopWordFile, params.vocabSize)
+    }
+    println("Finished reading data.")
+
+    val myTensorLDA: TensorLDA = new TensorLDA(
+      params.k,
+      params.topicConcentration,
+      params.maxIterations,
+      params.tolerance
+    )
     println("Start ALS algorithm for tensor decomposition...")
 
-    val (beta, alpha) = myTensorLDA.runALS(params.maxIterations)
+    val (beta, alpha) = myTensorLDA.fit(documents)
     println("Finished ALS algorithm for tensor decomposition.")
 
-    val numDocs: Long = myTensorLDA.numDocs
-    val vocabSize: Int = myTensorLDA.dimVocab
-    val corpus = myTensorLDA.documents
-    val vocabArray = myTensorLDA.vocabArray
-    val corpus_collection: Array[(Long, Double, breeze.linalg.SparseVector[Double])] = corpus.collect()
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
+    val numDocs: Long = documents.count()
+    val dimVocab: Int = documents.take(1)(0)._2.length
     sc.stop()
     println()
     println("Corpus summary:")
     println(s"\t Training set size: $numDocs documents")
-    println(s"\t Vocabulary size: $vocabSize terms")
+    println(s"\t Vocabulary size: $dimVocab terms")
     println(s"\t Model Training time: $preprocessElapsed sec")
     println()
+
+    //time
     val applicationElapsed: Double = (System.nanoTime() - applicationStart) / 1e9
+    val writer_time = new PrintWriter(new File(s"runningTime.txt"))
+    writer_time.write(s"$applicationElapsed sec")
+    writer_time.close()
 
+    println()
+    println("Learning done. Writing topic word matrix (beta) and topic proportions (alpha)... ")
 
-//time
-      val writer_time = new PrintWriter(new File(s"runningTime.txt"))
-      writer_time.write(s"$applicationElapsed sec")
-      writer_time.close()
+    // beta
+    breeze.linalg.csvwrite(new File(s"beta.txt"), beta, separator = ' ')
 
-
-      println()
-      println("Learning done. Writing topic word matrix (beta) and topic proportions (alpha)... ")
-
-// beta
-      breeze.linalg.csvwrite(new File(s"beta.txt"), beta, separator = ' ')
-
-  //alpha
-      // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
-      val alpha0Estimate:Double = breeze.linalg.sum(alpha)
-      val writer_alpha = new PrintWriter(new File(s"alpha.txt" ))
-      var i = 0
-      for( i <- 0 to alpha.length-1){
-        var thisAlpha: Double = alpha(i)/alpha0Estimate*params.topicConcentration
-         writer_alpha.write(s"$thisAlpha \t")
-      }
-      writer_alpha.close()
-    (corpus_collection, vocabArray, beta, alpha)
-   }
-
+    //alpha
+    // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
+    val alpha0Estimate:Double = breeze.linalg.sum(alpha)
+    val writer_alpha = new PrintWriter(new File(s"alpha.txt" ))
+    var i = 0
+    for( i <- 0 until alpha.length){
+      var thisAlpha: Double = alpha(i) / alpha0Estimate * params.topicConcentration
+      writer_alpha.write(s"$thisAlpha \t")
+    }
+    writer_alpha.close()
+    (documents, vocabArray, beta, alpha)
+  }
 }
 
