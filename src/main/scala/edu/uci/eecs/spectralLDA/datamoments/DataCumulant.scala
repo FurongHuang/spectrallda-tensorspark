@@ -20,11 +20,15 @@ case class DataCumulant(thirdOrderMoments: DenseMatrix[Double], unwhiteningMatri
 
 
 object DataCumulant {
-  def getDataCumulant(sc: SparkContext,
-                      dimK: Int, alpha0: Double, tolerance: Double,
-                      documents: RDD[(Long, Double, SparseVector[Double])],
-                      dimVocab: Int,
-                      numDocs: Long ): DataCumulant = {
+  def getDataCumulant(dimK: Int,
+                      alpha0: Double,
+                      tolerance: Double,
+                      documents: RDD[(Long, Double, SparseVector[Double])])
+        : DataCumulant = {
+    val sc: SparkContext = documents.sparkContext
+    val dimVocab = documents.take(1)(0)._3.length
+    val numDocs = documents.count()
+
     println("Start calculating first order moments...")
     val M1: DenseVector[Double] = documents map {
       case (_, length, vec) => update_firstOrderMoments(dimVocab, vec.toDenseVector, length)
