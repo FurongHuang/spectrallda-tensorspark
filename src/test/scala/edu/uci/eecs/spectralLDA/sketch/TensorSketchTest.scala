@@ -30,7 +30,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
       (2,2,0) -> 0, (2,1,1) -> 2, (0,2,0) -> 1,
       (1,0,0) -> 1, (1,0,1) -> 0, (2,1,0) -> 2
     )
-    val sketch = new TensorSketch[Double, Double](n, b, B, xi, h)
+    val sketcher = new TensorSketcher[Double, Double](n, b, B, xi, h)
 
     val a: Tensor[Seq[Int], Double] = Counter(
       Seq(0,0,0) -> 3, Seq(0,1,0) -> 5, Seq(1,0,0) -> 7,
@@ -38,8 +38,8 @@ class TensorSketchTest extends FlatSpec with Matchers {
       Seq(1,0,1) -> 6, Seq(1,1,1) -> 8
     )
 
-    val s = sketch.sketch(a)
-    val recovered_a = sketch.recover(s)
+    val s = sketcher.sketch(a)
+    val recovered_a = sketcher.recover(s)
 
     s should equal (new DenseMatrix[Double](3, 4,
       Array[Double](-13, 6, -16, 9, 17, 6,
@@ -57,7 +57,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
     val b = 32
     val B = 40
 
-    val sketch = TensorSketch[Double, Double](n, b, B)
+    val sketcher = TensorSketcher[Double, Double](n, b, B)
 
     // Two uniformly random tensors
     val t1: Tensor[Seq[Int], Double] = Counter()
@@ -77,8 +77,8 @@ class TensorSketchTest extends FlatSpec with Matchers {
     }
 
     // Sketch and compare the inner products
-    val s1 = sketch.sketch(t1)
-    val s2 = sketch.sketch(t2)
+    val s1 = sketcher.sketch(t1)
+    val s2 = sketcher.sketch(t2)
 
     val innerProductTensors = sum(
       for {

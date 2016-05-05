@@ -13,13 +13,13 @@ import scala.reflect.ClassTag
   * @tparam V value type of the input tensor
   * @tparam W value type of the sign functions \xi and the hashes
   * */
-trait TensorSketcher[V, W] {
+trait TensorSketcherBase[V, W] {
   def sketch(t: Tensor[Seq[Int], V])(implicit ev: V => W): DenseMatrix[W]
 
   def recover(f: DenseMatrix[W])(implicit ev2: Double => V): Tensor[Seq[Int], V]
 }
 
-/** Tensor sketch for any general tensor
+/** Tensor sketching for any general tensor
   *
   * @param n shape of the tensor [n_1, n_2, ..., n_p]
   * @param b number of hashes
@@ -31,14 +31,14 @@ trait TensorSketcher[V, W] {
   * @tparam V value type of the input tensor
   * @tparam W value type of the sign functions \xi and the hashes
   */
-class TensorSketch[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero,
-                   @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
+class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero,
+                     @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
         (n: Seq[Int],
          b: Int = Math.pow(2, 12).toInt,
          B: Int = 1,
          xi: Tensor[(Int, Int, Int), W],
          h: Tensor[(Int, Int, Int), Int])
-  extends TensorSketcher[V, W] {
+  extends TensorSketcherBase[V, W] {
   // order of the tensor
   val p: Int = n.size
 
@@ -107,6 +107,27 @@ class TensorSketch[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero
     tensor
   }
 
+  /** sketch a matrix specifically */
+  def sketch(a: Matrix[V])(implicit ev: V => W): DenseMatrix[W] = {
+    require(p == 2)
+
+    val evW = implicitly[Numeric[W]]
+    import evW._
+    val result = DenseMatrix.zeros[W](B, b)
+
+    for (hashFamilyId <- 0 until B; i <- 0 until a.rows; j <- 0 until a.cols) {
+      // For each index from the cartesian space [1,n_1]x[1,n_2]x...x[1,n_p]
+      // compute the contribution of the tensor's element to the final hashes
+      val hashedIndex = (h((hashFamilyId, 0, i)) + h((hashFamilyId, 1, j))) % b
+      val hashedCoeff = xi((hashFamilyId, 0, i)) * xi((hashFamilyId, 1, j))
+
+      result(hashFamilyId, hashedIndex) += hashedCoeff * ev(a(i, j))
+    }
+
+    result
+  }
+
+  /** Sketch a vector along the given dimension */
   def sketch(v: Vector[V], d: Int)(ev: V => W): DenseMatrix[W] = {
     assert(v.size == n(d))
 
@@ -130,7 +151,7 @@ class TensorSketch[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero
   }
 }
 
-object TensorSketch {
+object TensorSketcher {
   def apply[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero,
             @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
           (n: Seq[Int],
@@ -138,9 +159,9 @@ object TensorSketch {
            B: Int = 1,
            kWiseIndependent: Int = 2,
            seed: Option[Int] = None)
-          : TensorSketch[V, W] =  {
+          : TensorSketcher[V, W] =  {
     val (xi: Tensor[(Int, Int, Int), W], h: Tensor[(Int, Int, Int), Int]) =
       HashFunctions[W](n, b, B, kWiseIndependent, seed)
-    new TensorSketch[V, W](n, b, B, xi, h)
+    new TensorSketcher[V, W](n, b, B, xi, h)
   }
 }
