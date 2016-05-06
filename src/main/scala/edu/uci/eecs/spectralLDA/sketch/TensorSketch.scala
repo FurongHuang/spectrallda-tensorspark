@@ -22,7 +22,7 @@ trait TensorSketcherBase[V, W] {
 /** Tensor sketching for any general tensor
   *
   * @param n shape of the tensor [n_1, n_2, ..., n_p]
-  * @param b number of hashes
+  * @param b length of a hash
   * @param B number of hash families
   * @param xi the sign functions with norm 1, indexed by (hash_family_id, i, j),
   *           where 1\le i\le p, 1\le j\le n_i
@@ -32,13 +32,14 @@ trait TensorSketcherBase[V, W] {
   * @tparam W value type of the sign functions \xi and the hashes
   */
 class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero,
-                     @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
-        (n: Seq[Int],
-         b: Int = Math.pow(2, 12).toInt,
-         B: Int = 1,
-         xi: Tensor[(Int, Int, Int), W],
-         h: Tensor[(Int, Int, Int), Int])
+                          @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
+        (val n: Seq[Int],
+         val b: Int = Math.pow(2, 12).toInt,
+         val B: Int = 1,
+         val xi: Tensor[(Int, Int, Int), W],
+         val h: Tensor[(Int, Int, Int), Int])
   extends TensorSketcherBase[V, W] {
+
   // order of the tensor
   val p: Int = n.size
 
@@ -128,8 +129,8 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
   }
 
   /** Sketch a vector along the given dimension */
-  def sketch(v: Vector[V], d: Int)(ev: V => W): DenseMatrix[W] = {
-    assert(v.size == n(d))
+  def sketch(v: Vector[V], d: Int)(implicit ev: V => W): DenseMatrix[W] = {
+    assert(v.length == n(d))
 
     val evW = implicitly[Numeric[W]]
     import evW._
@@ -149,6 +150,10 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
       (x, y) => for (a <- x.view; b <- y) yield a :+ b
     }
   }
+
+  //implicit private def d2d(a: Double): Double = { a }
+
+  //implicit private def d2c(a: Double): Complex = { Complex(a, 0.0) }
 }
 
 object TensorSketcher {
