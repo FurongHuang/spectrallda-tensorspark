@@ -35,6 +35,8 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
     println("Pseudo RDD...")
     val pseudoRDD = sc.parallelize(0 until dimK)
     println("Start ALS iterations...")
+
+    val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
     breakable {
       while (maxIterations <= 0 || iter < maxIterations) {
         mode = (mode + 1) % 3
@@ -46,11 +48,8 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
           A_prev = A.copy
         }
 
-        val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
-
         // println("Mode A...")
         val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
-        // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
         for (idx <- 0 until dimK optimized) {
           A(idx, ::) := A_array(idx).t
         }
@@ -61,7 +60,6 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
 
         // println("Mode B...")
         val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
-        // B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()
         for (idx <- 0 until dimK optimized) {
           B(idx, ::) := B_array(idx).t
         }
@@ -70,7 +68,6 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
 
         // println("Mode C...")
         val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
-        // C_array = pseudoRDD.map(i => updateALSiteration(dimK, C, B, A, T(i, ::).t)).collect()
         for (idx <- 0 until dimK optimized) {
           C(idx, ::) := C_array(idx).t
         }
