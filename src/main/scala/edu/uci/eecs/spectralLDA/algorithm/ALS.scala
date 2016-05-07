@@ -15,70 +15,51 @@
  import scala.util.control.Breaks._
 
 class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
+
   def run(sc:SparkContext, maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
     val T: breeze.linalg.DenseMatrix[Double] = myData.thirdOrderMoments
     val unwhiteningMatrix: DenseMatrix[Double] = myData.unwhiteningMatrix
+
     val SEED_A: Long = System.currentTimeMillis
     val SEED_B: Long = System.currentTimeMillis
     val SEED_C: Long = System.currentTimeMillis
+
     var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_A)
     var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_B)
     var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_C)
-//    var A_broadcasted = sc.broadcast(A)
-//    var B_broadcasted = sc.broadcast(B)
-//    var C_broadcasted = sc.broadcast(C)
-//    val T_broadcasted = sc.broadcast(T)
+
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
-    var mode: Int = 2
-    var iter: Int = 0
-    println("Pseudo RDD...")
-    val pseudoRDD = sc.parallelize(0 until dimK)
+
     println("Start ALS iterations...")
-    breakable {
-      while (maxIterations <= 0 || iter < maxIterations) {
-        mode = (mode + 1) % 3
-        if (mode == 0) {
-          iter = iter + 1
-          if (AlgebraUtil.isConverged(A_prev, A)) {
-            break()
-          }
-          A_prev = A.copy
-        }
+    var iter: Int = 0
+    val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
+    while ((iter == 0) || ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A))) {
+      A_prev = A.copy
 
-        val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
-
-        // println("Mode A...")
-        val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
-        // A_array = pseudoRDD.map(i => updateALSiteration(dimK, A, C, B, T(i, ::).t)).collect()
-        for (idx <- 0 until dimK optimized) {
-          A(idx, ::) := A_array(idx).t
-        }
-        lambda = AlgebraUtil.colWiseNorm2(A)
-        A = AlgebraUtil.matrixNormalization(A)
-        // A_broadcasted = sc.broadcast(A)
-
-
-        // println("Mode B...")
-        val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
-        // B_array = pseudoRDD.map(i => updateALSiteration(dimK, B, A, C, T(i, ::).t)).collect()
-        for (idx <- 0 until dimK optimized) {
-          B(idx, ::) := B_array(idx).t
-        }
-        B = AlgebraUtil.matrixNormalization(B)
-        // B_broadcasted = sc.broadcast(B)
-
-        // println("Mode C...")
-        val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
-        // C_array = pseudoRDD.map(i => updateALSiteration(dimK, C, B, A, T(i, ::).t)).collect()
-        for (idx <- 0 until dimK optimized) {
-          C(idx, ::) := C_array(idx).t
-        }
-        C = AlgebraUtil.matrixNormalization(C)
-        // C_broadcasted = sc.broadcast(C)
-
-        iter += 1
+      // println("Mode A...")
+      val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
+      for (idx <- 0 until dimK optimized) {
+        A(idx, ::) := A_array(idx).t
       }
+      lambda = AlgebraUtil.colWiseNorm2(A)
+      A = AlgebraUtil.matrixNormalization(A)
+
+      // println("Mode B...")
+      val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
+      for (idx <- 0 until dimK optimized) {
+        B(idx, ::) := B_array(idx).t
+      }
+      B = AlgebraUtil.matrixNormalization(B)
+
+      // println("Mode C...")
+      val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
+      for (idx <- 0 until dimK optimized) {
+        C(idx, ::) := C_array(idx).t
+      }
+      C = AlgebraUtil.matrixNormalization(C)
+
+      iter += 1
     }
     println("Finished ALS iterations.")
 
