@@ -89,7 +89,7 @@ object DataCumulant {
     }
     println("Finished calculating third order moments.")
     val unwhiteningMatrix: breeze.linalg.DenseMatrix[Double] = eigenVectors * breeze.linalg.diag(eigenValues.map(x => scala.math.sqrt(x)))
-    (Ta / numDocs.toDouble - Ta_shift, unwhiteningMatrix)
+    (Ta / numDocs.toDouble + Ta_shift, unwhiteningMatrix)
   }
 
   private def whiten(sc: SparkContext,
