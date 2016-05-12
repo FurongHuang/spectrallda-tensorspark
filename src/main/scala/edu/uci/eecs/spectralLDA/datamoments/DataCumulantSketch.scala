@@ -38,24 +38,6 @@ object DataCumulantSketch {
     val firstOrderMoments: DenseVector[Double] = M1 / numDocs.toDouble
     println("Finished calculating first order moments.")
 
-    val (thirdOrderMoments: DenseMatrix[Double], unwhiteningMatrix: DenseMatrix[Double]) = computeThirdOrderMoments(
-      sc, alpha0, dimVocab, dimK,
-      numDocs, firstOrderMoments, documents,
-      tolerance
-    )
-
-    val thirdOrderMomentsSketch = sketcher.sketch(thirdOrderMoments)
-    new DataCumulantSketch(thirdOrderMomentsSketch, unwhiteningMatrix)
-  }
-
-  private def computeThirdOrderMoments(sc: SparkContext,
-                                       alpha0: Double,
-                                       dimVocab: Int, dimK: Int,
-                                       numDocs: Long,
-                                       firstOrderMoments: DenseVector[Double],
-                                       documents: RDD[(Long, Double, SparseVector[Double])],
-                                       tolerance: Double)
-  : (DenseMatrix[Double], DenseMatrix[Double]) = {
     println("Start calculating second order moments...")
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = whiten(sc, alpha0,
       dimVocab, dimK, numDocs, firstOrderMoments, documents)
@@ -90,8 +72,12 @@ object DataCumulantSketch {
       }
     }
     println("Finished calculating third order moments.")
+
+    val thirdOrderMoments = Ta / numDocs.toDouble + Ta_shift
+    val thirdOrderMomentsSketch = sketcher.sketch(thirdOrderMoments)
     val unwhiteningMatrix: breeze.linalg.DenseMatrix[Double] = eigenVectors * breeze.linalg.diag(eigenValues.map(x => scala.math.sqrt(x)))
-    (Ta / numDocs.toDouble - Ta_shift, unwhiteningMatrix)
+
+    new DataCumulantSketch(thirdOrderMomentsSketch, unwhiteningMatrix)
   }
 
   private def whiten(sc: SparkContext,
