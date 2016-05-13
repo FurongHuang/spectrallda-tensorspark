@@ -81,7 +81,7 @@ class ALSSketch(dimK: Int,
 
     // T * (C katri-rao dot B) * pinv((C^T C) :* (B^T B))
     // i.e T * pinv((C katri-rao dot B)^T)
-    Inverted * TIBC
+    TIBC * Inverted
   }
 
   private def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
