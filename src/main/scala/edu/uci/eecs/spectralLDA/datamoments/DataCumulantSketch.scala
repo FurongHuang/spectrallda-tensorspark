@@ -6,7 +6,9 @@ package edu.uci.eecs.spectralLDA.datamoments
 
 import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
 import breeze.linalg._
+import breeze.math.Complex
 import breeze.numerics.sqrt
+import breeze.signal.fourierTr
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -16,6 +18,7 @@ import scala.collection.mutable
 import scalaxy.loops._
 import scala.language.postfixOps
 
+
 /** Sketch of data cumulant
   *
   * Let the truncated eigendecomposition of $M2$ be $U\Sigma U^T$, $M2\in\mathsf{R}^{V\times V}$,
@@ -24,7 +27,7 @@ import scala.language.postfixOps
   *
   * If we denote $W=U\Sigma^{-1/2}$, then $W^T M2 W\approx I$. We call $W$ the whitening matrix.
   *
-  * @param thirdOrderMomentsSketch Sketch of whitened M3
+  * @param fftSketchWhitenedM3 FFT of the sketch of whitened M3, multiplied by a coefficient
   *                                i.e \frac{(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)
   *                                      = \sum_{i=1}^k\frac{\alpha_i}{\alpha_0}(W^T\mu_i)^{\otimes 3}
   * @param unwhiteningMatrix $(W^T)^{-1}=U\Sigma^{1/2}$
@@ -34,7 +37,7 @@ import scala.language.postfixOps
   *            http://arxiv.org/abs/1506.04448
   *
   */
-case class DataCumulantSketch(thirdOrderMomentsSketch: DenseMatrix[Double], unwhiteningMatrix: DenseMatrix[Double])
+case class DataCumulantSketch(fftSketchWhitenedM3: DenseMatrix[Complex], unwhiteningMatrix: DenseMatrix[Double])
   extends Serializable
 
 
@@ -43,7 +46,8 @@ object DataCumulantSketch {
                       alpha0: Double,
                       tolerance: Double,
                       documents: RDD[(Long, Double, SparseVector[Double])],
-                      sketcher: TensorSketcher[Double, Double])
+                      sketcher: TensorSketcher[Double, Double],
+                      randomisedSVD: Boolean = true)
   : DataCumulantSketch = {
     val sc: SparkContext = documents.sparkContext
 
@@ -57,12 +61,25 @@ object DataCumulantSketch {
         case (_, length, vec) => vec.toDenseVector / length
       }
       .reduce(_ + _)
-      .map(x => x / numDocs.toDouble)
+      .map(_ / numDocs.toDouble)
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
-    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = whiten(sc, alpha0,
-      dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
+    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = if (randomisedSVD) {
+      whiten(sc, alpha0,
+        dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
+    }
+    else {
+      val E_x1_x3: DenseMatrix[Double] = validDocuments
+        .map { case (_, length, vec) => (length, vec.toDenseVector) }
+        .map { case (length, vec) => (vec * vec.t - diag(vec)) / (length * (length - 1)) }
+        .reduce(_ + _)
+        .map(_ / numDocs.toDouble)
+      val M2: DenseMatrix[Double] = E_x1_x3 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+
+      val eigSym.EigSym(sigma, u) = eigSym((alpha0 + 1) * M2)
+      (u(::, 0 until dimK), sigma(0 until dimK))
+    }
     println("Finished calculating second order moments and whitening matrix.")
 
     println("Start whitening data with dimensionality reduction...")
@@ -75,7 +92,7 @@ object DataCumulantSketch {
     val broadcasted_W = sc.broadcast(W)
     val broadcasted_sketcher = sc.broadcast(sketcher)
 
-    var Ta: DenseMatrix[Double] = validDocuments
+    var fft_Ta: DenseMatrix[Complex] = validDocuments
       .map {
         case (_, len, vec) => update_thirdOrderMoments(
           alpha0,
@@ -85,22 +102,26 @@ object DataCumulantSketch {
           broadcasted_sketcher.value)
       }
       .reduce(_ + _)
-      .map(x => x / numDocs.toDouble)
+      .map(_ / numDocs.toDouble)
 
     broadcasted_W.unpersist()
     broadcasted_sketcher.unpersist()
 
     // sketch of q=W^T M1
-    val sketch_q = (0 until 3) map { sketcher.sketch(firstOrderMoments_whitened, _) }
-    val sketch_q_otimes_3 = sketch_q(0) :* sketch_q(1) :* sketch_q(2)
+    val fft_sketch_q: Seq[DenseMatrix[Complex]] = (0 until 3)
+      .map { sketcher.sketch(firstOrderMoments_whitened, _) }
+      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+    val fft_sketch_q_otimes_3 = fft_sketch_q(0) :* fft_sketch_q(1) :* fft_sketch_q(2)
 
     // sketch of whitened M3
-    val sketch_whitened_M3 = Ta + 2 * alpha0 * alpha0 / ((alpha0 + 1) * (alpha0 + 2)) * sketch_q_otimes_3
+    val fft_sketch_whitened_M3: DenseMatrix[Complex] = (fft_Ta
+      + fft_sketch_q_otimes_3 :* Complex(2 * alpha0 * alpha0 / ((alpha0 + 1) * (alpha0 + 2)), 0)
+      )
     println("Finished calculating third order moments.")
 
     val unwhiteningMatrix = eigenVectors * diag(sqrt(eigenValues))
 
-    new DataCumulantSketch(sketch_whitened_M3 * (alpha0 + 1) * (alpha0 + 2) / 2.0, unwhiteningMatrix)
+    new DataCumulantSketch(fft_sketch_whitened_M3 :* Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0), unwhiteningMatrix)
   }
 
   private def whiten(sc: SparkContext,
@@ -152,7 +173,7 @@ object DataCumulantSketch {
     (eigenVectors(::, 0 until dimK), eigenValues(0 until dimK))
   }
 
-  /** Compute the contribution of the document to the sketch of whitened M3
+  /** Compute the contribution of the document to the FFT of the sketch of whitened M3
     *
     * @param alpha0 Topic concentration
     * @param W Whitening matrix $W\in\mathsf{R^{V\times k}$, where $V$ is the vocabulary size,
@@ -161,7 +182,7 @@ object DataCumulantSketch {
     * @param n Word count vector for the current document
     * @param len Total word counts for the current document
     * @param sketcher The sketching facility
-    * @return The contribution of the document to the sketch of whitened M3
+    * @return The contribution of the document to the FFT of the sketch of whitened M3
     *         i.e. $E[x_1\otimes x_2\otimes x_3](W^T,W^T,W^T)-
     *                  \frac{\alpha_0}{\alpha_0+2}\left(E[x_1\otimes x_2\otimes M1]
     *                                       +E[x_1\otimes M1\otimes x_2]
@@ -179,80 +200,89 @@ object DataCumulantSketch {
                                        n: SparseVector[Double],
                                        len: Double,
                                        sketcher: TensorSketcher[Double, Double])
-        : DenseMatrix[Double] = {
+        : DenseMatrix[Complex] = {
     /* ------------------------------------- */
 
     // $p=W^T n$, where n is the original word count vector
     val p = W.t * n
 
-    // sketch of p, i.e W^T n, where n is the original word count vector
-    val sketch_p = (0 until 3) map { sketcher.sketch(p, _) }
+    // fft of sketch_p, $p=W^T n$, where $n$ is the original word count vector
+    val fft_sketch_p: Seq[DenseMatrix[Complex]] = (0 until 3)
+      .map { sketcher.sketch(p, _) }
+      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
 
-    // sketch of q, i.e W^T M1
-    val sketch_q = (0 until 3) map { sketcher.sketch(q, _) }
+    // fft of sketch_q, $q=W^T M1$
+    val fft_sketch_q: Seq[DenseMatrix[Complex]] = (0 until 3)
+      .map { sketcher.sketch(q, _) }
+      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+
 
     /* ------------------------------------- */
 
     // sketch of $p^{\otimes 3}$
-    val sketch_p_otimes_3 = sketch_p(0) :* sketch_p(1) :* sketch_p(2)
+    val fft_sketch_p_otimes_3 = fft_sketch_p(0) :* fft_sketch_p(1) :* fft_sketch_p(2)
 
     // sketch of $p\otimes p\otimes q$
-    val sketch_p_p_q = sketch_p(0) :* sketch_p(1) :* sketch_q(2)
+    val fft_sketch_p_p_q = fft_sketch_p(0) :* fft_sketch_p(1) :* fft_sketch_q(2)
 
     // sketch of $p\otimes q\otimes p$
-    val sketch_p_q_p = sketch_p(0) :* sketch_q(1) :* sketch_p(2)
+    val fft_sketch_p_q_p = fft_sketch_p(0) :* fft_sketch_q(1) :* fft_sketch_p(2)
 
     // sketch of $q\otimes p\otimes p$
-    val sketch_q_p_p = sketch_q(0) :* sketch_p(1) :* sketch_p(2)
+    val fft_sketch_q_p_p = fft_sketch_q(0) :* fft_sketch_p(1) :* fft_sketch_p(2)
 
     /* ------------------------------------- */
 
-    // sketch of $\sum_{i=1}^V -n_i\left(w_i\otimes w_i\otimes p+w_i\otimes p\otimes w_i+p\otimes w_i\otimes w_i\right)
+    // fft of sketch of $\sum_{i=1}^V -n_i\left(w_i\otimes w_i\otimes p+w_i\otimes p\otimes w_i
+    //                                           +p\otimes w_i\otimes w_i\right)
     //                +\sum_{i=1}^V 2n_i w_i^{\otimes 3}$
     // ref: Eq (25) in [Wang2015]
-    val sum1 = DenseMatrix.zeros[Double](sketcher.B, sketcher.b)
+    val fft_sum1: DenseMatrix[Complex] = fft_sketch_q(0) * Complex(0, 0)
 
-    // sketch of $\sum_{i=1}^V -n_i\left(w_i\otimes w_i\otimes q
-    //                                   +w_i\otimes q\otimes w_i
-    //                                   +q\otimes w_i\otimes w_i\right)$
+    // fft of sketch of $\sum_{i=1}^V -n_i\left(w_i\otimes w_i\otimes q
+    //                                          +w_i\otimes q\otimes w_i
+    //                                          +q\otimes w_i\otimes w_i\right)$
     // ref: Eq (26) in [Wang2015]
-    val sum2 = DenseMatrix.zeros[Double](sketcher.B, sketcher.b)
+    val fft_sum2: DenseMatrix[Complex] = fft_sketch_q(0) * Complex(0, 0)
 
     for ((wc_index, wc_value) <- n.activeIterator) {
-      val sketch_w_i = (0 until 3) map { sketcher.sketch(W(wc_index, ::).t, _) }
+      val fft_sketch_w_i: Seq[DenseMatrix[Complex]] = (0 until 3)
+        .map { sketcher.sketch(W(wc_index, ::).t, _) }
+        .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
 
-      // sketch of $w_i^{\otimes 3}$
-      val sketch_w_i_otimes_3 = sketch_w_i(0) :* sketch_w_i(1) :* sketch_w_i(2)
+      // fft of sketch of $w_i^{\otimes 3}$
+      val fft_sketch_w_i_otimes_3 = fft_sketch_w_i(0) :* fft_sketch_w_i(1) :* fft_sketch_w_i(2)
 
-      // sketch of $w_i\otimes w_i\otimes p
-      val sketch_w_i_w_i_p = sketch_w_i(0) :* sketch_w_i(1) :* sketch_p(2)
-      // sketch of $w_i\otimes p\otimes w_i
-      val sketch_w_i_p_w_i = sketch_w_i(0) :* sketch_p(1) :* sketch_w_i(2)
+      // fft of sketch of $w_i\otimes w_i\otimes p
+      val fft_sketch_w_i_w_i_p = fft_sketch_w_i(0) :* fft_sketch_w_i(1) :* fft_sketch_p(2)
+      // fft of sketch of $w_i\otimes p\otimes w_i
+      val fft_sketch_w_i_p_w_i = fft_sketch_w_i(0) :* fft_sketch_p(1) :* fft_sketch_w_i(2)
       // sketch of $p\otimes w_i\otimes w_i$
-      val sketch_p_w_i_w_i = sketch_p(0) :* sketch_w_i(1) :* sketch_w_i(2)
+      val fft_sketch_p_w_i_w_i = fft_sketch_p(0) :* fft_sketch_w_i(1) :* fft_sketch_w_i(2)
 
       // sketch of $w_i\otimes w_i\otimes q
-      val sketch_w_i_w_i_q = sketch_w_i(0) :* sketch_w_i(1) :* sketch_q(2)
+      val fft_sketch_w_i_w_i_q = fft_sketch_w_i(0) :* fft_sketch_w_i(1) :* fft_sketch_q(2)
       // sketch of $w_i\otimes q\otimes w_i
-      val sketch_w_i_q_w_i = sketch_w_i(0) :* sketch_q(1) :* sketch_w_i(2)
+      val fft_sketch_w_i_q_w_i = fft_sketch_w_i(0) :* fft_sketch_q(1) :* fft_sketch_w_i(2)
       // sketch of $q\otimes w_i\otimes w_i$
-      val sketch_q_w_i_w_i = sketch_q(0) :* sketch_w_i(1) :* sketch_w_i(2)
+      val fft_sketch_q_w_i_w_i = fft_sketch_q(0) :* fft_sketch_w_i(1) :* fft_sketch_w_i(2)
 
-      sum1 :+= - wc_value * (sketch_w_i_w_i_p + sketch_w_i_p_w_i + sketch_p_w_i_w_i)
-                  + 2 * wc_value * sketch_w_i_otimes_3
+      fft_sum1 :+= - (fft_sketch_w_i_w_i_p + fft_sketch_w_i_p_w_i + fft_sketch_p_w_i_w_i) :* Complex(wc_value, 0)
+      fft_sum1 :+= fft_sketch_w_i_otimes_3 :* Complex(2 * wc_value, 0)
 
-      sum2 :+= - wc_value * (sketch_w_i_w_i_q + sketch_w_i_q_w_i + sketch_q_w_i_w_i)
+      fft_sum2 :+= - (fft_sketch_w_i_w_i_q + fft_sketch_w_i_q_w_i + fft_sketch_q_w_i_w_i) :* Complex(wc_value, 0)
     }
 
     // sketch of contribution to $E[x_1\otimes x_2\otimes x_3](W^T,W^T,W^T)$
-    val sketch_contribution1 = (sketch_p_otimes_3 + sum1) / (len * (len - 1) * (len - 2))
+    val fft_sketch_contribution1 = (fft_sketch_p_otimes_3 + fft_sum1) :/ Complex(len * (len - 1) * (len - 2), 0)
 
     // sketch of contribution to $\left(E[x_1\otimes x_2\otimes M1]
     //                                  +E[x_1\otimes M1\otimes x_2]
     //                                  +E[M1\otimes x_1\otimes x_2]\right)(W^T,W^T,W^T)$
-    val sketch_contribution2 = (sketch_p_p_q + sketch_p_q_p + sketch_q_p_p + sum2) / (len * (len - 1))
+    val fft_sketch_contribution2 = ((fft_sketch_p_p_q + fft_sketch_p_q_p + fft_sketch_q_p_p + fft_sum2)
+      :/ Complex(len * (len - 1), 0))
 
-    sketch_contribution1 - alpha0 / (alpha0 + 2) * sketch_contribution2
+    fft_sketch_contribution1 - fft_sketch_contribution2 :* Complex(alpha0 / (alpha0 + 2), 0)
   }
 
   private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,

@@ -14,6 +14,7 @@ class TensorLDASketch(dimK: Int,
                       maxIterations: Int = 1000,
                       tolerance: Double = 1e-9,
                       sketcher: TensorSketcher[Double, Double],
+                      randomisedSVD: Boolean = true,
                       nonNegativeDocumentConcentration: Boolean = true) extends Serializable {
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
@@ -26,11 +27,18 @@ class TensorLDASketch(dimK: Int,
       dimK, alpha0,
       tolerance,
       documents_,
-      sketcher
+      sketcher,
+      randomisedSVD = randomisedSVD
     )
 
-    val myALS: ALSSketch = new ALSSketch(dimK, myDataSketch, sketcher)
-    myALS.run(documents.sparkContext, maxIterations)
+    val myALS: ALSSketch = new ALSSketch(
+      dimK,
+      myDataSketch,
+      sketcher,
+      nonNegativeDocumentConcentration = nonNegativeDocumentConcentration
+    )
+
+    myALS.run
   }
 
 }

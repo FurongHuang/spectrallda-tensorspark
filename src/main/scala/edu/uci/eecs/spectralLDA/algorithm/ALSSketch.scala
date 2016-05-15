@@ -20,14 +20,13 @@ import scala.util.control.Breaks._
 class ALSSketch(dimK: Int,
                 myDataSketch: DataCumulantSketch,
                 sketcher: TensorSketcher[Double, Double],
+                maxIterations: Int = 1000,
                 nonNegativeDocumentConcentration: Boolean = true) extends Serializable {
 
-  def run(sc:SparkContext,
-          maxIterations: Int)
-        : (DenseMatrix[Double], DenseVector[Double])={
-    val sketch_T: DenseMatrix[Double] = myDataSketch.thirdOrderMomentsSketch
-    val unwhiteningMatrix: DenseMatrix[Double] = myDataSketch.unwhiteningMatrix
+  val fft_sketch_T: DenseMatrix[Complex] = myDataSketch.fftSketchWhitenedM3
+  val unwhiteningMatrix: DenseMatrix[Double] = myDataSketch.unwhiteningMatrix
 
+  def run: (DenseMatrix[Double], DenseVector[Double]) = {
     val SEED_A: Long = System.currentTimeMillis
     val SEED_B: Long = System.currentTimeMillis
     val SEED_C: Long = System.currentTimeMillis
@@ -46,16 +45,16 @@ class ALSSketch(dimK: Int,
       A_prev = A.copy
 
       // println("Mode A...")
-      A = updateALSiteration(sketch_T, B, C, sketcher)
+      A = updateALSiteration(fft_sketch_T, B, C, sketcher)
       lambda = AlgebraUtil.colWiseNorm2(A)
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
-      B = updateALSiteration(sketch_T, C, A, sketcher)
+      B = updateALSiteration(fft_sketch_T, C, A, sketcher)
       B = AlgebraUtil.matrixNormalization(B)
 
       // println("Mode C...")
-      C = updateALSiteration(sketch_T, A, B, sketcher)
+      C = updateALSiteration(fft_sketch_T, A, B, sketcher)
       C = AlgebraUtil.matrixNormalization(C)
 
       iter += 1
@@ -74,7 +73,7 @@ class ALSSketch(dimK: Int,
     }
   }
 
-  private def updateALSiteration(sketch_T: DenseMatrix[Double],
+  private def updateALSiteration(fft_sketch_T: DenseMatrix[Complex],
                                  B: DenseMatrix[Double],
                                  C: DenseMatrix[Double],
                                  sketcher: TensorSketcher[Double, Double])
@@ -83,7 +82,7 @@ class ALSSketch(dimK: Int,
     val Inverted: DenseMatrix[Double] = AlgebraUtil.to_invert(C, B)
 
     // T(C katri-rao dot B)
-    val TIBC: DenseMatrix[Double] = TensorSketchOps.TIUV(sketch_T, B, C, sketcher)
+    val TIBC: DenseMatrix[Double] = TensorSketchOps.TIUV(fft_sketch_T, B, C, sketcher)
 
     // T * (C katri-rao dot B) * pinv((C^T C) :* (B^T B))
     // i.e T * pinv((C katri-rao dot B)^T)
@@ -136,11 +135,11 @@ class ALSSketch(dimK: Int,
 }
 
 private object TensorSketchOps {
-  /** Compute T(I, u, v) given the fft of sketch_T
+  /** Compute T(I, u, v) given the FFT of sketch_T
     *
     * T is an n-by-n-by-n tensor, for the orthogonalised M3
     *
-    * @param fft_sketch_T fft of sketch_T, with B rows where B is the number of hash families
+    * @param fft_sketch_T FFT of sketch_T, with B rows where B is the number of hash families
     * @param u length-n vector
     * @param v length-n vector
     * @param sketcher count sketcher on n-by-n-by-n tensors
@@ -175,7 +174,7 @@ private object TensorSketchOps {
       // dot_product(ifft(fft(sketch_T) :* conj(fft(sketch_{2,u})) :* conj(fft(sketch_{3,v}))), sketch_{e_i})
       // for all i, 1\le i\le n
       for (i <- 0 until n) {
-        all_inner_prod(hashFamilyId to hashFamilyId, i) := (TIuv_lhs(sketcher.h((hashFamilyId, 0, i)))
+        all_inner_prod(hashFamilyId, i) = (TIuv_lhs(sketcher.h((hashFamilyId, 0, i)))
                                                               * sketcher.xi((hashFamilyId, 0, i)))
       }
     }
@@ -191,21 +190,19 @@ private object TensorSketchOps {
     *
     * T is an n-by-n-by-n tensor, for the orthogonalised M3
     *
-    * @param sketch_T sketch of T, with B rows where B is the number of hash families
+    * @param fft_sketch_T FFT of the sketch of T, with B rows where B is the number of hash families
     * @param U n-by-k matrix
     * @param V n-by-k matrix
     * @param sketcher count sketcher on n-by-n-by-n tensors
     * @return n-by-k matrix for {T(I, U_i, V_i), 1\le i\le k}
     */
-  def TIUV(sketch_T: DenseMatrix[Double],
+  def TIUV(fft_sketch_T: DenseMatrix[Complex],
            U: DenseMatrix[Double],
            V: DenseMatrix[Double],
            sketcher: TensorSketcher[Double, Double])
       : DenseMatrix[Double] = {
     assert((U.rows == V.rows) && (U.cols == V.cols))
     assert(sketcher.n(0) == U.rows)
-
-    val fft_sketch_T: DenseMatrix[Complex] = fourierTr(sketch_T(*, ::))
 
     val result: DenseMatrix[Double] = DenseMatrix.zeros[Double](U.rows, U.cols)
     for (j <- 0 until U.cols) {
