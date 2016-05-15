@@ -51,7 +51,9 @@ object DataCumulantSketch {
   : DataCumulantSketch = {
     val sc: SparkContext = documents.sparkContext
 
-    val validDocuments: RDD[(Long, Double, SparseVector[Double])] = documents.filter( _._2 >= 3 )
+    val validDocuments: RDD[(Long, Double, SparseVector[Double])] = documents.filter {
+      case (_, length, _) => length >= 3
+    }
     val dimVocab = validDocuments.take(1)(0)._3.length
     val numDocs = validDocuments.count()
 
@@ -70,16 +72,18 @@ object DataCumulantSketch {
         dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
     }
     else {
-      val E_x1_x3: DenseMatrix[Double] = validDocuments
-        .map { case (_, length, vec) => (length, vec.toDenseVector) }
-        .map { case (length, vec) => (vec * vec.t - diag(vec)) / (length * (length - 1)) }
+      val E_x1_x2: DenseMatrix[Double] = validDocuments
+        .map { case (_, len, vec) => (len, vec.toDenseVector) }
+        .map { case (len, vec) => (vec * vec.t - diag(vec)) / (len * (len - 1)) }
         .reduce(_ + _)
         .map(_ / numDocs.toDouble)
-      val M2: DenseMatrix[Double] = E_x1_x3 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+      val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
 
       val eigSym.EigSym(sigma, u) = eigSym((alpha0 + 1) * M2)
-      (u(::, 0 until dimK), sigma(0 until dimK))
+      val i = argsort(sigma)
+      (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)
     }
+
     println("Finished calculating second order moments and whitening matrix.")
 
     println("Start whitening data with dimensionality reduction...")
