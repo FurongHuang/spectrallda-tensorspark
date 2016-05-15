@@ -38,7 +38,7 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
          val B: Int = 1,
          val xi: Tensor[(Int, Int, Int), W],
          val h: Tensor[(Int, Int, Int), Int])
-  extends TensorSketcherBase[V, W] {
+  extends TensorSketcherBase[V, W] with Serializable {
 
   // order of the tensor
   val p: Int = n.size
