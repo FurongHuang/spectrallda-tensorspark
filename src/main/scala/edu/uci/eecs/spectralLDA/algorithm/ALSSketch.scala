@@ -6,7 +6,7 @@ package edu.uci.eecs.spectralLDA.algorithm
   */
 import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
 import edu.uci.eecs.spectralLDA.datamoments.DataCumulantSketch
-import breeze.linalg.{*, DenseMatrix, DenseVector}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.stats.median
@@ -19,7 +19,8 @@ import scala.util.control.Breaks._
 
 class ALSSketch(dimK: Int,
                 myDataSketch: DataCumulantSketch,
-                sketcher: TensorSketcher[Double, Double]) extends Serializable {
+                sketcher: TensorSketcher[Double, Double],
+                nonNegativeDocumentConcentration: Boolean = true) extends Serializable {
 
   def run(sc:SparkContext,
           maxIterations: Int)
@@ -61,11 +62,16 @@ class ALSSketch(dimK: Int,
     }
     println("Finished ALS iterations.")
 
-    val whitenedTopicWordMatrix: DenseMatrix[Double] = unwhiteningMatrix * A.copy
     val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
-    val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = whitenedTopicWordMatrix * breeze.linalg.diag(lambda)
-    val topicWordMatrix_normed: breeze.linalg.DenseMatrix[Double] = simplexProj_Matrix(topicWordMatrix)
-    (topicWordMatrix_normed, alpha)
+    val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = unwhiteningMatrix * A * diag(lambda)
+
+    if (nonNegativeDocumentConcentration) {
+      val topicWordMatrix_normed: breeze.linalg.DenseMatrix[Double] = simplexProj_Matrix(topicWordMatrix)
+      (topicWordMatrix_normed, alpha)
+    }
+    else {
+      (topicWordMatrix, alpha)
+    }
   }
 
   private def updateALSiteration(sketch_T: DenseMatrix[Double],

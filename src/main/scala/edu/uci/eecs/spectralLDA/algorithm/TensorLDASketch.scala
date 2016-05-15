@@ -13,7 +13,8 @@ class TensorLDASketch(dimK: Int,
                       alpha0: Double,
                       maxIterations: Int = 1000,
                       tolerance: Double = 1e-9,
-                      sketcher: TensorSketcher[Double, Double]) extends Serializable {
+                      sketcher: TensorSketcher[Double, Double],
+                      nonNegativeDocumentConcentration: Boolean = true) extends Serializable {
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
   : (DenseMatrix[Double], DenseVector[Double]) = {
