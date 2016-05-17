@@ -1,15 +1,17 @@
 package edu.uci.eecs.spectralLDA.sketch
 
 import breeze.linalg._
-import breeze.stats.distributions._
-import breeze.math._
-import breeze.numerics._
+import breeze.stats.distributions.Uniform
+import breeze.signal.fourierTr
+import breeze.math.Complex
+import breeze.numerics.abs
+import edu.uci.eecs.spectralLDA.utils.TensorOps
 import org.scalatest._
 import org.scalatest.Matchers._
 
 
 class TensorSketchTest extends FlatSpec with Matchers {
-  "A 2x2x2 tensor's sketch" should "be correct" in {
+  "Tensor's sketch" should "be correct" in {
     val n: Seq[Int] = Seq(2, 2, 2)
     val b = 4
     val B = 3
@@ -52,7 +54,8 @@ class TensorSketchTest extends FlatSpec with Matchers {
     ))
   }
 
-  "Two 10x10x10 random tensors' sketches inner product" should "be close to the tensors' inner product" in {
+  "The inner product of two 3d tensors' sketches" should
+    "be close to the tensors' inner product" in {
     val n: Seq[Int] = Seq(10, 10, 10)
     val b = 32
     val B = 40
@@ -90,7 +93,105 @@ class TensorSketchTest extends FlatSpec with Matchers {
     val innerProductSketches = sum(s1 :* s2) / B
 
     val delta = innerProductSketches - innerProductTensors
-    info("Difference of inner products: %f" format delta)
+    //info("Difference of inner products: %f" format delta)
     abs(delta) should be <= 0.05
+  }
+
+  "Sketch of rank-1 3d tensor" should "be the convolution of the sketches along each dimension" in {
+    val n = Seq(3, 3, 3)
+    val sketcher = TensorSketcher[Double, Double](
+      n = n,
+      B = 10,
+      b = Math.pow(2, 2).toInt
+    )
+
+    val v: Seq[DenseVector[Double]] = Seq(
+      DenseVector[Double](0.2, 0.3, 0.5),
+      DenseVector[Double](0.3, 0.5, 0.7),
+      DenseVector[Double](0.5, 0.7, 0.9)
+    )
+
+    val t: Tensor[Seq[Int], Double] = Counter()
+    for (i <- 0 until n(0); j <- 0 until n(1); k <- 0 until n(2)) {
+      t(Seq(i, j, k)) = v(0)(i) * v(1)(j) * v(2)(k)
+    }
+
+    val sketch_v = (0 until 3).map { d => sketcher.sketch(v(d), d) }
+    val fft_sketch_v = sketch_v.map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+    val prod_fft_sketch_v: DenseMatrix[Complex] = fft_sketch_v(0) :* fft_sketch_v(1) :* fft_sketch_v(2)
+
+    val sketch_t = sketcher.sketch(t)
+    val fft_sketch_t: DenseMatrix[Complex] = fourierTr(sketch_t(*, ::))
+
+    TensorOps.matrixNorm(fft_sketch_t - prod_fft_sketch_v) should be <= 1e-6
+  }
+
+  "Sketch of whitened rank-1 3d tensor" should
+    "be the convolution of sketches of whitened vectors along each dimension" in {
+    val v: Seq[DenseVector[Double]] = Seq(
+      DenseVector.rand(50),
+      DenseVector.rand(50),
+      DenseVector.rand(50)
+    )
+    val orig_n: Seq[Int] = v map { _.length }
+
+    val t: Tensor[Seq[Int], Double] = Counter()
+    for (i <- 0 until orig_n(0); j <- 0 until orig_n(1); k <- 0 until orig_n(2)) {
+      t(Seq(i, j, k)) = v(0)(i) * v(1)(j) * v(2)(k)
+    }
+
+    val W: DenseMatrix[Double] = DenseMatrix.rand[Double](50, 5)
+    val n: Seq[Int] = Seq(5, 5, 5)
+
+    val whitened_v = v map { W.t * _ }
+    val whitened_t = TensorOps.tensor3dFromUnfolded(
+      W.t * TensorOps.unfoldTensor3d(t, orig_n) * kron(W.t, W.t).t,
+      n
+    )
+
+    val sketcher = TensorSketcher[Double, Double](
+      n = Seq(5, 5, 5),
+      B = 10,
+      b = Math.pow(2, 4).toInt
+    )
+
+    val sketch_whitened_v = (0 until 3).map { d => sketcher.sketch(whitened_v(d), d) }
+    val fft_sketch_whitened_v = sketch_whitened_v.map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+    val prod_fft_sketch_whitened_v: DenseMatrix[Complex] = (fft_sketch_whitened_v(0)
+      :* fft_sketch_whitened_v(1) :* fft_sketch_whitened_v(2))
+
+    val sketch_whitened_t = sketcher.sketch(whitened_t)
+    val fft_sketch_whitened_t: DenseMatrix[Complex] = fourierTr(sketch_whitened_t(*, ::))
+
+    TensorOps.matrixNorm(fft_sketch_whitened_t - prod_fft_sketch_whitened_v) should be <= 1e-6
+  }
+
+  "Sketch of whitened diagonal matrix" should "be the expected sum of sketches" in {
+    val v: DenseVector[Double] = DenseVector.rand(50)
+    val t: DenseMatrix[Double] = diag(v)
+
+    val sketcher = TensorSketcher[Double, Double](
+      n = Seq(5, 5),
+      B = 10,
+      b = Math.pow(2, 4).toInt
+    )
+
+    val W = DenseMatrix.rand[Double](50, 5)
+
+    val whitened_t = W.t * t * W
+
+    val sketch_whitened_t = sketcher.sketch(whitened_t)
+    val fft_sketch_whitened_t = fourierTr(sketch_whitened_t(*, ::))
+
+    val sum_fft_sketches = fft_sketch_whitened_t * Complex(0, 0)
+    for (k <- 0 until v.length) {
+      val sketch_w_i = (0 until 2) map { sketcher.sketch(W(k, ::).t, _) }
+      val fft_sketch_w_i: Seq[DenseMatrix[Complex]] = sketch_w_i
+        .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+
+      sum_fft_sketches :+= (fft_sketch_w_i(0) :* fft_sketch_w_i(1)) * Complex(v(k), 0)
+    }
+
+    TensorOps.matrixNorm(fft_sketch_whitened_t - sum_fft_sketches) should be <= 1e-6
   }
 }

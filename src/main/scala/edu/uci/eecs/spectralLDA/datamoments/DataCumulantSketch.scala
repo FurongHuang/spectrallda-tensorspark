@@ -44,16 +44,21 @@ case class DataCumulantSketch(fftSketchWhitenedM3: DenseMatrix[Complex], unwhite
 object DataCumulantSketch {
   def getDataCumulant(dimK: Int,
                       alpha0: Double,
-                      tolerance: Double,
-                      documents: RDD[(Long, Double, SparseVector[Double])],
+                      documents: RDD[(Long, SparseVector[Double])],
                       sketcher: TensorSketcher[Double, Double],
                       randomisedSVD: Boolean = true)
+                     (implicit tolerance: Double = 1e-9)
   : DataCumulantSketch = {
     val sc: SparkContext = documents.sparkContext
 
-    val validDocuments: RDD[(Long, Double, SparseVector[Double])] = documents.filter {
-      case (_, length, _) => length >= 3
-    }
+    val validDocuments = documents
+      .map {
+        case (id, wc) => (id, sum(wc), wc)
+      }
+      .filter {
+        case (_, len, _) => len >= 3
+      }
+
     val dimVocab = validDocuments.take(1)(0)._3.length
     val numDocs = validDocuments.count()
 
@@ -119,13 +124,13 @@ object DataCumulantSketch {
 
     // sketch of whitened M3
     val fft_sketch_whitened_M3: DenseMatrix[Complex] = (fft_Ta
-      + fft_sketch_q_otimes_3 :* Complex(2 * alpha0 * alpha0 / ((alpha0 + 1) * (alpha0 + 2)), 0)
+      + fft_sketch_q_otimes_3 * Complex(2 * alpha0 * alpha0 / ((alpha0 + 1) * (alpha0 + 2)), 0)
       )
     println("Finished calculating third order moments.")
 
     val unwhiteningMatrix = eigenVectors * diag(sqrt(eigenValues))
 
-    new DataCumulantSketch(fft_sketch_whitened_M3 :* Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0), unwhiteningMatrix)
+    new DataCumulantSketch(fft_sketch_whitened_M3 * Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0), unwhiteningMatrix)
   }
 
   private def whiten(sc: SparkContext,
@@ -208,7 +213,7 @@ object DataCumulantSketch {
     /* ------------------------------------- */
 
     // $p=W^T n$, where n is the original word count vector
-    val p = W.t * n
+    val p: DenseVector[Double] = W.t * n
 
     // fft of sketch_p, $p=W^T n$, where $n$ is the original word count vector
     val fft_sketch_p: Seq[DenseMatrix[Complex]] = (0 until 3)
@@ -271,22 +276,22 @@ object DataCumulantSketch {
       // sketch of $q\otimes w_i\otimes w_i$
       val fft_sketch_q_w_i_w_i = fft_sketch_q(0) :* fft_sketch_w_i(1) :* fft_sketch_w_i(2)
 
-      fft_sum1 :+= - (fft_sketch_w_i_w_i_p + fft_sketch_w_i_p_w_i + fft_sketch_p_w_i_w_i) :* Complex(wc_value, 0)
-      fft_sum1 :+= fft_sketch_w_i_otimes_3 :* Complex(2 * wc_value, 0)
+      fft_sum1 :+= - (fft_sketch_w_i_w_i_p + fft_sketch_w_i_p_w_i + fft_sketch_p_w_i_w_i) * Complex(wc_value, 0)
+      fft_sum1 :+= fft_sketch_w_i_otimes_3 * Complex(2 * wc_value, 0)
 
-      fft_sum2 :+= - (fft_sketch_w_i_w_i_q + fft_sketch_w_i_q_w_i + fft_sketch_q_w_i_w_i) :* Complex(wc_value, 0)
+      fft_sum2 :+= - (fft_sketch_w_i_w_i_q + fft_sketch_w_i_q_w_i + fft_sketch_q_w_i_w_i) * Complex(wc_value, 0)
     }
 
     // sketch of contribution to $E[x_1\otimes x_2\otimes x_3](W^T,W^T,W^T)$
-    val fft_sketch_contribution1 = (fft_sketch_p_otimes_3 + fft_sum1) :/ Complex(len * (len - 1) * (len - 2), 0)
+    val fft_sketch_contribution1 = (fft_sketch_p_otimes_3 + fft_sum1) / Complex(len * (len - 1) * (len - 2), 0)
 
     // sketch of contribution to $\left(E[x_1\otimes x_2\otimes M1]
     //                                  +E[x_1\otimes M1\otimes x_2]
     //                                  +E[M1\otimes x_1\otimes x_2]\right)(W^T,W^T,W^T)$
     val fft_sketch_contribution2 = ((fft_sketch_p_p_q + fft_sketch_p_q_p + fft_sketch_q_p_p + fft_sum2)
-      :/ Complex(len * (len - 1), 0))
+      / Complex(len * (len - 1), 0))
 
-    fft_sketch_contribution1 - fft_sketch_contribution2 :* Complex(alpha0 / (alpha0 + 2), 0)
+    fft_sketch_contribution1 - fft_sketch_contribution2 * Complex(alpha0 / (alpha0 + 2), 0)
   }
 
   private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,
