@@ -6,3 +6,9 @@ target/
 SpectralLDA-Tensor/src/main/scala/edu/uci/eecs/spectralLDA/LDAExample.scala
 
 src/main/scala/edu/uci/eecs/spectralLDA/SpectralLDA_old.scala
+
+LDAExample-SparkSubmit
+
+run.sh
+
+Tensor-SparkSubmit
