@@ -24,6 +24,7 @@ object SpectralLDA {
                              tolerance: Double = 1e-9,
                              topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
+                             outputDir: String = "",
                              stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt"
                           )
 
@@ -53,6 +54,10 @@ object SpectralLDA {
         .text("whether to use libsvm data or real text (0=real text, 1=libsvm data)" +
         s"  default:${defaultParams.libsvm}")
         .action((x, c) => c.copy(libsvm = x))
+      opt[String]("outputDir")
+        .text(s"output write path." +
+        s" default: ${defaultParams.outputDir}")
+        .action((x, c) => c.copy(outputDir = x))
       opt[String]("stopWordFile")
         .text("filepath for a list of stopwords. Note: This must fit on a single machine." +
         s"  default: ${defaultParams.stopWordFile}")
@@ -123,8 +128,9 @@ object SpectralLDA {
     println()
 
     //time
+    val thisK = params.k
     val applicationElapsed: Double = (System.nanoTime() - applicationStart) / 1e9
-    val writer_time = new PrintWriter(new File(s"runningTime.txt"))
+    val writer_time = new PrintWriter(new File(params.outputDir + s"TD_runningTime_k$thisK" + ".txt"))
     writer_time.write(s"$applicationElapsed sec")
     writer_time.close()
 
@@ -132,12 +138,12 @@ object SpectralLDA {
     println("Learning done. Writing topic word matrix (beta) and topic proportions (alpha)... ")
 
     // beta
-    breeze.linalg.csvwrite(new File(s"beta.txt"), beta, separator = ' ')
+    breeze.linalg.csvwrite(new File(params.outputDir + s"/TD_beta_k$thisK" + ".txt"), beta, separator = ' ')
 
     //alpha
     // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
     val alpha0Estimate:Double = breeze.linalg.sum(alpha)
-    val writer_alpha = new PrintWriter(new File(s"alpha.txt" ))
+    val writer_alpha = new PrintWriter(new File(params.outputDir + s"/alpha_k$thisK" + ".txt" ))
     var i = 0
     for( i <- 0 until alpha.length){
       var thisAlpha: Double = alpha(i) / alpha0Estimate * params.topicConcentration

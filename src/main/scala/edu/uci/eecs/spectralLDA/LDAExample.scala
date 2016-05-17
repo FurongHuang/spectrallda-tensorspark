@@ -29,6 +29,7 @@ import org.apache.spark.mllib.linalg.{Vector,Vectors}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.storage.StorageLevel
+import java.io._
 
 /**
  * An example Latent Dirichlet Allocation (LDA) app. Run with
@@ -41,14 +42,15 @@ object LDAExample {
 
   private case class Params(
       input: Seq[String] = Seq.empty,
-      synthetic: Int = 0,
+      libsvm: Int = 1,
       k: Int = 20,
       maxIterations: Int = 10,
       docConcentration: Double = -1,
       topicConcentration: Double = -1,
-      vocabSize: Int = 10000,
+      vocabSize: Int = -1,
       stopwordFile: String = "",
       algorithm: String = "em",
+      outputDir: String = "",
       checkpointDir: Option[String] = None,
       checkpointInterval: Int = 10)
 
@@ -75,10 +77,10 @@ object LDAExample {
         .text(s"number of distinct word types to use, chosen by frequency. (-1=all)" +
           s"  default: ${defaultParams.vocabSize}")
         .action((x, c) => c.copy(vocabSize = x))
-      opt[Int]("synthetic")
-        .text("whether to use synthetic data or real text (0=real text, 1=synthetic data)" +
-        s"  default:${defaultParams.synthetic}")
-        .action((x, c) => c.copy(synthetic = x))
+      opt[Int]("libsvm")
+        .text("whether to use libsvm data or real text (0=real text, 1=libsvm data)" +
+        s"  default:${defaultParams.libsvm}")
+        .action((x, c) => c.copy(libsvm = x))
       opt[String]("stopwordFile")
         .text(s"filepath for a list of stopwords. Note: This must fit on a single machine." +
         s"  default: ${defaultParams.stopwordFile}")
@@ -87,6 +89,10 @@ object LDAExample {
         .text(s"inference algorithm to use. em and online are supported." +
         s" default: ${defaultParams.algorithm}")
         .action((x, c) => c.copy(algorithm = x))
+      opt[String]("outputDir")
+        .text(s"output write path." +
+        s" default: ${defaultParams.outputDir}")
+        .action((x, c) => c.copy(outputDir = x))
       opt[String]("checkpointDir")
         .text(s"Directory for checkpointing intermediate results." +
         s"  Checkpointing helps with recovery and eliminates temporary shuffle files on disk." +
@@ -162,12 +168,42 @@ object LDAExample {
     println(s"Finished training LDA model.  Summary:")
     println(s"\t Training time: $elapsed sec")
 
+    //time
+    val thisK = params.k
+
+    val writer_time = new PrintWriter(new File(params.outputDir + s"VI_runningTime_k$thisK" + ".txt"))
+    
+
     if (ldaModel.isInstanceOf[DistributedLDAModel]) {
       val distLDAModel = ldaModel.asInstanceOf[DistributedLDAModel]
       val avgLogLikelihood = distLDAModel.logLikelihood / actualCorpusSize.toDouble
       println(s"\t Training data average log likelihood: $avgLogLikelihood")
-      println()
+      writer_time.write(s"$elapsed sec,\t Training data average log likelihood: $avgLogLikelihood\n")
     }
+
+    writer_time.close() 
+    // beta
+    val beta_mllib = ldaModel.topicsMatrix
+    //val beta = beta_mllib.toBreeze()
+    //breeze.linalg.csvwrite(new File(params.outputDir + s"/VI_beta_k$thisK" + ".txt"), beta, separator = ' ')
+
+
+    val localMatrix: List[Array[Double]] = beta_mllib
+    	.transpose  // Transpose since .toArray is column major
+    	.toArray
+    	.grouped(beta_mllib.numCols)
+    	.toList
+
+    val lines: List[String] = localMatrix
+    	.map(line => line.mkString(" "))
+
+    sc.parallelize(lines)
+    	.repartition(1)
+    	.saveAsTextFile(params.outputDir + s"/VI_beta_k$thisK" + ".txt")
+
+
+
+
 
     // Print the topics, showing the top-weighted terms for each topic.
     val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 10)
@@ -300,3 +336,4 @@ object LDAExample {
 
 }
 // scalastyle:on println
+
