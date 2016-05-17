@@ -108,7 +108,7 @@ class DataCumulantSketchTest extends FlatSpec with Matchers {
 
       rawM3: DenseMatrix[Double] = DenseMatrix.zeros[Double](V, V * V)
       fillM3 = for (i <- 0 until V; j <- 0 until V; k <- 0 until V) {
-        val j2 = j * V + k
+        val j2 = k * V + j
         rawM3(i, j2) = c(i) * c(j) * c(k)
         if (i == j)
           rawM3(i, j2) -= c(i) * c(k)
