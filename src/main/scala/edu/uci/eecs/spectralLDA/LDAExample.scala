@@ -171,7 +171,7 @@ object LDAExample {
     //time
     val thisK = params.k
 
-    val writer_time = new PrintWriter(new File(params.outputDir + s"VI_runningTime_k$thisK" + ".txt"))
+    val writer_time = new PrintWriter(new File(params.outputDir + s"/VI_runningTime_k$thisK" + ".txt"))
     
 
     if (ldaModel.isInstanceOf[DistributedLDAModel]) {

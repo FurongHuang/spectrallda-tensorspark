@@ -130,7 +130,7 @@ object SpectralLDA {
     //time
     val thisK = params.k
     val applicationElapsed: Double = (System.nanoTime() - applicationStart) / 1e9
-    val writer_time = new PrintWriter(new File(params.outputDir + s"TD_runningTime_k$thisK" + ".txt"))
+    val writer_time = new PrintWriter(new File(params.outputDir + s"/TD_runningTime_k$thisK" + ".txt"))
     writer_time.write(s"$applicationElapsed sec")
     writer_time.close()
 
