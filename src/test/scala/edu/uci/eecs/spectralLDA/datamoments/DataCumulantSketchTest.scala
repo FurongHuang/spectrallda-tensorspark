@@ -51,7 +51,7 @@ class DataCumulantSketchTest extends FlatSpec with Matchers {
     val documents = simulateLDAData(
       alpha,
       allTokenDistributions,
-      numDocuments = 2000,
+      numDocuments = 100,
       numTokensPerDocument = 100
     )
     val documentsRDD = sc.parallelize(documents)
