@@ -34,7 +34,8 @@ class TensorLDASketch(dimK: Int,
       nonNegativeDocumentConcentration = nonNegativeDocumentConcentration
     )
 
-    myALS.run
+    val (beta, alpha) = myALS.run
+    (beta, alpha * alpha0)
   }
 
 }

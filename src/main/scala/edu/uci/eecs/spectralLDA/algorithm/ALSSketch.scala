@@ -134,7 +134,7 @@ class ALSSketch(dimK: Int,
 
 }
 
-private object TensorSketchOps {
+private[algorithm] object TensorSketchOps {
   /** Compute T(I, u, v) given the FFT of sketch_T
     *
     * T is an n-by-n-by-n tensor, for the orthogonalised M3
@@ -155,33 +155,22 @@ private object TensorSketchOps {
     val sketch_u: DenseMatrix[Double] = sketcher.sketch(u, 1)
     val sketch_v: DenseMatrix[Double] = sketcher.sketch(v, 2)
 
-    val all_inner_prod: DenseMatrix[Complex] = DenseMatrix.zeros[Complex](sketcher.B, n)
+    val fft_sketch_u: DenseMatrix[Complex] = fourierTr(sketch_u(*, ::))
+    val fft_sketch_v: DenseMatrix[Complex] = fourierTr(sketch_v(*, ::))
 
-    for (hashFamilyId <- 0 until sketcher.B) {
-      val fft_sketch_u = fourierTr(sketch_u(hashFamilyId, ::)).toDenseVector
-      val fft_sketch_v = fourierTr(sketch_v(hashFamilyId, ::)).toDenseVector
+    val prod_fft: DenseMatrix[Complex] = (fft_sketch_T :* (fft_sketch_u map { _.conjugate })
+      :* (fft_sketch_v map { _.conjugate }))
+    val TIuv_lhs: DenseMatrix[Double] = iFourierTr(prod_fft(*, ::)) map { _.re }
 
-      // one-row matrix for conj(fft(sketch_{2,u})) :* conj(fft(sketch_{3,v}))
-      val prod_conj_fft: DenseMatrix[Complex] = fft_sketch_u.t :* fft_sketch_v.t
-
-      // one-row matrix for fft(sketch_T) :* conj(fft(sketch_{2,u})) :* conj(fft(sketch_{3,v}))
-      val prod: DenseMatrix[Complex] = fft_sketch_T(hashFamilyId to hashFamilyId, ::) :* prod_conj_fft
-
-      // ifft(fft(sketch_T) :* conj(fft(sketch_{2,u})) :* conj(fft(sketch_{3,v})))
-      // aka l.h.s of the dot product for TIuv
-      val TIuv_lhs: DenseVector[Complex] = iFourierTr(prod.toDenseVector)
-
-      // dot_product(ifft(fft(sketch_T) :* conj(fft(sketch_{2,u})) :* conj(fft(sketch_{3,v}))), sketch_{e_i})
-      // for all i, 1\le i\le n
-      for (i <- 0 until n) {
-        all_inner_prod(hashFamilyId, i) = (TIuv_lhs(sketcher.h((hashFamilyId, 0, i)))
-                                                              * sketcher.xi((hashFamilyId, 0, i)))
-      }
+    val all_inner_prod: DenseMatrix[Double] = DenseMatrix.zeros[Double](sketcher.B, n)
+    for (hashFamilyId <- 0 until sketcher.B; i <- 0 until n) {
+      all_inner_prod(hashFamilyId, i) = (TIuv_lhs(hashFamilyId, sketcher.h((hashFamilyId, 0, i)) % sketcher.b)
+        * sketcher.xi((hashFamilyId, 0, i)))
     }
 
     val result = for {
         i <- 0 until n
-    } yield median(all_inner_prod(::, i) map { _.re })
+    } yield median(all_inner_prod(::, i))
 
     DenseVector(result: _*)
   }
@@ -202,7 +191,8 @@ private object TensorSketchOps {
            sketcher: TensorSketcher[Double, Double])
       : DenseMatrix[Double] = {
     assert((U.rows == V.rows) && (U.cols == V.cols))
-    assert(sketcher.n(0) == U.rows)
+    assert(sketcher.n(0) == sketcher.n(1) && sketcher.n(1) == sketcher.n(2)
+      && sketcher.n(0) == U.rows)
 
     val result: DenseMatrix[Double] = DenseMatrix.zeros[Double](U.rows, U.cols)
     for (j <- 0 until U.cols) {

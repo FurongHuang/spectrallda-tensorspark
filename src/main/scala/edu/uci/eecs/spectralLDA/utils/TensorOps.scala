@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 object TensorOps {
   def matrixNorm(m: DenseMatrix[Complex]): Double = {
-    max(norm(m(::, *)))
+    norm(norm(m(::, *)).toDenseVector)
   }
 
   def unfoldTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
@@ -28,22 +28,6 @@ object TensorOps {
     val t: Tensor[Seq[Int], V] = Counter[Seq[Int], V]
     for (i <- 0 until n(0); j <- 0 until n(1); k <- 0 until n(2)) {
       t(Seq(i, j, k)) = g(i, k * n(1) + j)
-    }
-    t
-  }
-
-  def makeRank1Tensor[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
-       (v: Seq[DenseVector[V]]): Tensor[Seq[Int], V] = {
-    val n: Seq[Int] = v map { _.length }
-    val t: Tensor[Seq[Int], V] = Counter[Seq[Int], V]
-
-    val multiIndexRange = cartesianProduct(n map { Range(0, _) })
-    for (i <- multiIndexRange) {
-      val l = for {
-        k <- n.indices
-      } yield v(k)(i(k))
-
-      t(i) = l.product
     }
     t
   }
@@ -67,11 +51,5 @@ object TensorOps {
       result(::, i) := krprod[V](A(::, i), B(::, i))
     }
     result
-  }
-
-  private def cartesianProduct[A](xs: Traversable[Traversable[A]]): Seq[Seq[A]] = {
-    xs.foldLeft(Seq(Seq.empty[A])){
-      (x, y) => for (a <- x.view; b <- y) yield a :+ b
-    }
   }
 }

@@ -2,8 +2,6 @@ package edu.uci.eecs.spectralLDA.algorithm
 
 import breeze.linalg._
 import breeze.stats.distributions.{Dirichlet, Multinomial}
-import breeze.numerics.sqrt
-import breeze.signal.fourierTr
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.scalatest._
 import org.scalatest.Matchers._
@@ -40,9 +38,8 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     wordCounts
   }
 
-  /*
   "Simulated LDA" should "be recovered" in {
-    val alpha: DenseVector[Double] = DenseVector[Double](5.0, 5.0, 5.0)
+    val alpha: DenseVector[Double] = DenseVector[Double](5.0, 10.0, 20.0)
     val allTokenDistributions: DenseMatrix[Double] = new DenseMatrix[Double](5, 3,
       Array[Double](0.6, 0.1, 0.1, 0.1, 0.1,
         0.1, 0.1, 0.6, 0.1, 0.1,
@@ -51,30 +48,41 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     val documents = simulateLDAData(
       alpha,
       allTokenDistributions,
-      numDocuments = 20,
+      numDocuments = 2000,
       numTokensPerDocument = 1000
     )
     val documentsRDD = sc.parallelize(documents)
 
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(3, 3, 3),
-      B = 10,
-      b = Math.pow(2, 2).toInt
+      B = 100,
+      b = Math.pow(2, 7).toInt
     )
 
     val tensorLDA = new TensorLDASketch(
       dimK = 3,
       alpha0 = sum(alpha),
       sketcher = sketcher,
-      maxIterations = 50,
+      maxIterations = 200,
       nonNegativeDocumentConcentration = false,
       randomisedSVD = false
     )
 
     val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double]) = tensorLDA.fit(documentsRDD)
 
-    info(fitted_beta.toString())
-    info(fitted_alpha.toString())
+    // Rearrange the elements/columns of fitted_alpha and fitted_beta
+    // to the order of initial alpha and beta
+    val i = argsort(fitted_alpha)
+    val sorted_beta = fitted_beta(::, i).toDenseMatrix
+    val sorted_alpha = fitted_alpha(i).toDenseVector
+
+    val diff_beta: DenseMatrix[Double] = sorted_beta - allTokenDistributions
+    val diff_alpha: DenseVector[Double] = sorted_alpha - alpha
+
+    val norm_diff_beta = norm(norm(diff_beta(::, *)).toDenseVector)
+    val norm_diff_alpha = norm(diff_alpha)
+
+    norm_diff_beta should be <= 0.2
+    norm_diff_alpha should be <= 4.0
   }
-*/
 }
