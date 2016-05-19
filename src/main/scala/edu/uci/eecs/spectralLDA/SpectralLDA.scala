@@ -10,6 +10,8 @@ import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
+import scalaxy.loops._
+import scala.language.postfixOps
 import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
@@ -28,7 +30,7 @@ object SpectralLDA {
                              stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt"
                           )
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val defaultParams = Params()
 
     val parser: OptionParser[Params] = new OptionParser[Params]("LDA Example") {
@@ -70,9 +72,9 @@ object SpectralLDA {
         .action((x, c) => c.copy(input = c.input :+ x))
     }
 
-    val (corpus: RDD[(Long, SparseVector[Double])], vocabArray: Array[String], beta: DenseMatrix[Double], alpha:DenseVector[Double]) = parser.parse(args, defaultParams).map { params =>
+    parser.parse(args, defaultParams).map { params =>
       run(params)
-    }.getOrElse {
+    }.orElse {
       parser.showUsageAsError
       sys.exit(1)
     }
@@ -144,8 +146,7 @@ object SpectralLDA {
     // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
     val alpha0Estimate:Double = breeze.linalg.sum(alpha)
     val writer_alpha = new PrintWriter(new File(params.outputDir + s"/alpha_k$thisK" + ".txt" ))
-    var i = 0
-    for( i <- 0 until alpha.length){
+    for( i <- 0 until alpha.length optimized){
       var thisAlpha: Double = alpha(i) / alpha0Estimate * params.topicConcentration
       writer_alpha.write(s"$thisAlpha \t")
     }

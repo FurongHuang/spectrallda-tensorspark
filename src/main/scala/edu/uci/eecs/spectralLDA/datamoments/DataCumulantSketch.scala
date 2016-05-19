@@ -72,7 +72,7 @@ object DataCumulantSketch {
     println("Finished whitening data.")
 
     println("Start calculating third order moments...")
-    var Ta: DenseMatrix[Double] = whitenedData map {
+    val Ta: DenseMatrix[Double] = whitenedData map {
       case (vec, len) => update_thirdOrderMoments(
         dimK, alpha0,
         firstOrderMoments_whitened,
