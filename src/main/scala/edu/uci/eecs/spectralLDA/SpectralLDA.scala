@@ -40,31 +40,31 @@ object SpectralLDA {
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
       opt[Double]("tolerance")
-        .text(s"tolerance. default: ${defaultParams.tolerance}")
+        .text(s"tolerance. default: ${defaultParams.tolerance}".stripMargin('|'))
         .action((x, c) => c.copy(tolerance = x))
       opt[Double]("topicConcentration")
-        .text("amount of term (word) smoothing to use (> 1.0) (-1=auto)." +
-        s"  default: ${defaultParams.topicConcentration}")
+        .text(s"""amount of term (word) smoothing to use (> 1.0) (-1=auto).
+                 |  default: ${defaultParams.topicConcentration}""".stripMargin('|'))
         .action((x, c) => c.copy(topicConcentration = x))
       opt[Int]("vocabSize")
-        .text("number of distinct word types to use, chosen by frequency. (-1=all)" +
-        s"  default: ${defaultParams.vocabSize}")
+        .text(s"""number of distinct word types to use, chosen by frequency. (-1=all)
+                 |  default: ${defaultParams.vocabSize}""".stripMargin('|'))
         .action((x, c) => c.copy(vocabSize = x))
       opt[Int]("libsvm")
-        .text("whether to use libsvm data or real text (0=real text, 1=libsvm data)" +
-        s"  default:${defaultParams.libsvm}")
+        .text(s"""whether to use libsvm data or real text (0=real text, 1=libsvm data)
+                 |  default:${defaultParams.libsvm}""".stripMargin('|'))
         .action((x, c) => c.copy(libsvm = x))
       opt[String]("outputDir")
-        .text(s"output write path." +
-        s" default: ${defaultParams.outputDir}")
+        .text(s"""output write path.
+                 | default: ${defaultParams.outputDir}""".stripMargin('|'))
         .action((x, c) => c.copy(outputDir = x))
       opt[String]("stopWordFile")
-        .text("filepath for a list of stopwords. Note: This must fit on a single machine." +
-        s"  default: ${defaultParams.stopWordFile}")
+        .text(s"""filepath for a list of stopwords. Note: This must fit on a single machine.
+                 |  default: ${defaultParams.stopWordFile}""".stripMargin('|'))
         .action((x, c) => c.copy(stopWordFile = x))
       arg[String]("<input>...")
-        .text("input paths (directories) to plain text corpora." +
-        "  Each text file line should hold 1 document.")
+        .text("""input paths (directories) to plain text corpora.
+                |  Each text file line should hold 1 document.""".stripMargin('|'))
         .unbounded()
         .required()
         .action((x, c) => c.copy(input = c.input :+ x))
@@ -153,4 +153,3 @@ object SpectralLDA {
     (documents, vocabArray, beta, alpha)
   }
 }
-
