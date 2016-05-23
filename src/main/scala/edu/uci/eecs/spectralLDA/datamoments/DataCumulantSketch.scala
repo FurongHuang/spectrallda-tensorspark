@@ -103,7 +103,7 @@ object DataCumulantSketch {
     val broadcasted_W = sc.broadcast(W)
     val broadcasted_sketcher = sc.broadcast(sketcher)
 
-    var fft_Ta: DenseMatrix[Complex] = validDocuments
+    val fft_Ta: DenseMatrix[Complex] = validDocuments
       .map {
         case (_, len, vec) => update_thirdOrderMoments(
           alpha0,
