@@ -78,8 +78,10 @@ object DataCumulantSketch {
     }
     else {
       val E_x1_x2: DenseMatrix[Double] = validDocuments
-        .map { case (_, len, vec) => (len, vec.toDenseVector) }
-        .map { case (len, vec) => (vec * vec.t - diag(vec)) / (len * (len - 1)) }
+        .map { case (_, len, vec) =>
+          val v2 = vec.toDenseVector
+          (v2 * v2.t - diag(v2)) / (len * (len - 1))
+        }
         .reduce(_ + _)
         .map(_ / numDocs.toDouble)
       val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
@@ -118,8 +120,10 @@ object DataCumulantSketch {
 
     // sketch of q=W^T M1
     val fft_sketch_q: Seq[DenseMatrix[Complex]] = (0 until 3)
-      .map { sketcher.sketch(firstOrderMoments_whitened, _) }
-      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+      .map { (d) =>
+        val sketch: DenseMatrix[Double] = sketcher.sketch(firstOrderMoments_whitened, d)
+        fourierTr(sketch(*, ::))
+      }
     val fft_sketch_q_otimes_3 = fft_sketch_q(0) :* fft_sketch_q(1) :* fft_sketch_q(2)
 
     // sketch of whitened M3
@@ -217,14 +221,17 @@ object DataCumulantSketch {
 
     // fft of sketch_p, $p=W^T n$, where $n$ is the original word count vector
     val fft_sketch_p: Seq[DenseMatrix[Complex]] = (0 until 3)
-      .map { sketcher.sketch(p, _) }
-      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+      .map { (d) =>
+        val sketch: DenseMatrix[Double] = sketcher.sketch(p, d)
+        fourierTr(sketch(*, ::))
+      }
 
     // fft of sketch_q, $q=W^T M1$
     val fft_sketch_q: Seq[DenseMatrix[Complex]] = (0 until 3)
-      .map { sketcher.sketch(q, _) }
-      .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
-
+      .map { (d) =>
+        val sketch: DenseMatrix[Double] = sketcher.sketch(q, d)
+        fourierTr(sketch(*, ::))
+      }
 
     /* ------------------------------------- */
 
@@ -256,8 +263,10 @@ object DataCumulantSketch {
 
     for ((wc_index, wc_value) <- n.activeIterator) {
       val fft_sketch_w_i: Seq[DenseMatrix[Complex]] = (0 until 3)
-        .map { sketcher.sketch(W(wc_index, ::).t, _) }
-        .map { A: DenseMatrix[Double] => fourierTr(A(*, ::)) }
+        .map { (d) =>
+          val sketch: DenseMatrix[Double] = sketcher.sketch(W(wc_index, ::).t, d)
+          fourierTr(sketch(*, ::))
+        }
 
       // fft of sketch of $w_i^{\otimes 3}$
       val fft_sketch_w_i_otimes_3 = fft_sketch_w_i(0) :* fft_sketch_w_i(1) :* fft_sketch_w_i(2)
