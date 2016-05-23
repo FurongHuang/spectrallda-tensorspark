@@ -56,7 +56,7 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(3, 3, 3),
       B = 100,
-      b = Math.pow(2, 7).toInt
+      b = Math.pow(2, 8).toInt
     )
 
     val tensorLDA = new TensorLDASketch(
@@ -74,7 +74,18 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     // to the order of initial alpha and beta
     val i = argsort(fitted_alpha)
     val sorted_beta = fitted_beta(::, i).toDenseMatrix
+    // if one vector is all negative, multiply it by -1 to turn it positive
+    for (j <- 0 until sorted_beta.cols) {
+      if (max(sorted_beta(::, j)) <= 0.0) {
+        sorted_beta(::, j) :*= -1.0
+      }
+    }
     val sorted_alpha = fitted_alpha(i).toDenseVector
+
+    info(s"Expecting alpha: $alpha")
+    info(s"Obtained alpha: $sorted_alpha")
+    info(s"Expecting beta:\n$allTokenDistributions")
+    info(s"Obtained beta:\n$sorted_beta")
 
     val diff_beta: DenseMatrix[Double] = sorted_beta - allTokenDistributions
     val diff_alpha: DenseVector[Double] = sorted_alpha - alpha
