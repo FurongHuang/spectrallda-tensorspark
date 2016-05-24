@@ -29,7 +29,7 @@ object AlgebraUtil{
     val ctc: DenseMatrix[Double] = c.t * c
     val btb: DenseMatrix[Double] = b.t * b
     val to_be_inverted: DenseMatrix[Double] = ctc :* btb
-    return breeze.linalg.pinv(to_be_inverted)
+    breeze.linalg.pinv(to_be_inverted)
   }
 
 
@@ -43,10 +43,10 @@ object AlgebraUtil{
 
       }
       val normsq_sqrt: Double = Math.sqrt(A(::, j) dot A(::, j))
-      var scale: Double = if (normsq_sqrt > TOLERANCE) 1.0 / normsq_sqrt else 1e-12
+      val scale: Double = if (normsq_sqrt > TOLERANCE) 1.0 / normsq_sqrt else 1e-12
       A(::, j) :*= scale
     }
-    return A
+    A
   }
 
 
@@ -67,7 +67,7 @@ object AlgebraUtil{
     for (i <- 0 until A.cols optimized) {
       A(::, i) :*= (if (colNorms(i) > TOLERANCE) (1.0 / colNorms(i)) else TOLERANCE)
     }
-    return A
+    A
   }
 
   def KhatrioRao(A: DenseVector[Double], B: DenseVector[Double]): DenseVector[Double] = {
@@ -119,7 +119,7 @@ object AlgebraUtil{
     val numerator: Double = breeze.linalg.norm(newA.toDenseVector - oldA.toDenseVector)
     val denominator: Double = breeze.linalg.norm(newA.toDenseVector)
     val delta: Double = numerator / denominator
-    return delta < TOLERANCE
+    delta < TOLERANCE
   }
 
 

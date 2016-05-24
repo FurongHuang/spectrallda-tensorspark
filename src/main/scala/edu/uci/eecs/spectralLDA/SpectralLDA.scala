@@ -10,6 +10,8 @@ import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
 import org.apache.spark.{SparkConf,SparkContext}
+import scalaxy.loops._
+import scala.language.postfixOps
 import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
@@ -28,7 +30,7 @@ object SpectralLDA {
                              stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt"
                           )
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val defaultParams = Params()
 
     val parser: OptionParser[Params] = new OptionParser[Params]("LDA Example") {
@@ -40,39 +42,39 @@ object SpectralLDA {
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
       opt[Double]("tolerance")
-        .text(s"tolerance. default: ${defaultParams.tolerance}")
+        .text(s"tolerance. default: ${defaultParams.tolerance}".stripMargin('|'))
         .action((x, c) => c.copy(tolerance = x))
       opt[Double]("topicConcentration")
-        .text("amount of term (word) smoothing to use (> 1.0) (-1=auto)." +
-        s"  default: ${defaultParams.topicConcentration}")
+        .text(s"""amount of term (word) smoothing to use (> 1.0) (-1=auto).
+                 |  default: ${defaultParams.topicConcentration}""".stripMargin('|'))
         .action((x, c) => c.copy(topicConcentration = x))
       opt[Int]("vocabSize")
-        .text("number of distinct word types to use, chosen by frequency. (-1=all)" +
-        s"  default: ${defaultParams.vocabSize}")
+        .text(s"""number of distinct word types to use, chosen by frequency. (-1=all)
+                 |  default: ${defaultParams.vocabSize}""".stripMargin('|'))
         .action((x, c) => c.copy(vocabSize = x))
       opt[Int]("libsvm")
-        .text("whether to use libsvm data or real text (0=real text, 1=libsvm data)" +
-        s"  default:${defaultParams.libsvm}")
+        .text(s"""whether to use libsvm data or real text (0=real text, 1=libsvm data)
+                 |  default:${defaultParams.libsvm}""".stripMargin('|'))
         .action((x, c) => c.copy(libsvm = x))
       opt[String]("outputDir")
-        .text(s"output write path." +
-        s" default: ${defaultParams.outputDir}")
+        .text(s"""output write path.
+                 | default: ${defaultParams.outputDir}""".stripMargin('|'))
         .action((x, c) => c.copy(outputDir = x))
       opt[String]("stopWordFile")
-        .text("filepath for a list of stopwords. Note: This must fit on a single machine." +
-        s"  default: ${defaultParams.stopWordFile}")
+        .text(s"""filepath for a list of stopwords. Note: This must fit on a single machine.
+                 |  default: ${defaultParams.stopWordFile}""".stripMargin('|'))
         .action((x, c) => c.copy(stopWordFile = x))
       arg[String]("<input>...")
-        .text("input paths (directories) to plain text corpora." +
-        "  Each text file line should hold 1 document.")
+        .text("""input paths (directories) to plain text corpora.
+                |  Each text file line should hold 1 document.""".stripMargin('|'))
         .unbounded()
         .required()
         .action((x, c) => c.copy(input = c.input :+ x))
     }
 
-    val (corpus: RDD[(Long, SparseVector[Double])], vocabArray: Array[String], beta: DenseMatrix[Double], alpha:DenseVector[Double]) = parser.parse(args, defaultParams).map { params =>
+    parser.parse(args, defaultParams).map { params =>
       run(params)
-    }.getOrElse {
+    }.orElse {
       parser.showUsageAsError
       sys.exit(1)
     }
@@ -144,8 +146,7 @@ object SpectralLDA {
     // println(alpha.map(x => math.abs(x/alpha0Estimate*params.topicConcentration)))
     val alpha0Estimate:Double = breeze.linalg.sum(alpha)
     val writer_alpha = new PrintWriter(new File(params.outputDir + s"/alpha_k$thisK" + ".txt" ))
-    var i = 0
-    for( i <- 0 until alpha.length){
+    for( i <- 0 until alpha.length optimized){
       var thisAlpha: Double = alpha(i) / alpha0Estimate * params.topicConcentration
       writer_alpha.write(s"$thisAlpha \t")
     }
@@ -153,4 +154,3 @@ object SpectralLDA {
     (documents, vocabArray, beta, alpha)
   }
 }
-

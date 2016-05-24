@@ -35,14 +35,14 @@ scalacOptions :=  Seq(
 
 libraryDependencies ++= Seq(
     "com.nativelibs4java" %% "scalaxy-loops" % "[0.3.4,)",
-    "com.github.scopt" %% "scopt" % "[3.3.0,)",
+    "com.github.scopt" %% "scopt" % "[3.4.0,)",
     "org.scalatest" %% "scalatest" % "[2.2.6,)" % "test",
     "org.scalatest" %% "scalatest-matchers" % "[2.2.6,)" % "test"
 )
 
 
 {
-  val defaultSparkVersion = "[1.5.1,)"
+  val defaultSparkVersion = "[1.6.1,)"
   val sparkVersion =
     scala.util.Properties.envOrElse("SPARK_VERSION", defaultSparkVersion)
 

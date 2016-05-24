@@ -98,6 +98,7 @@ object DataCumulantSketch {
     println("Finished whitening data.")
 
     println("Start calculating third order moments...")
+
     val firstOrderMoments_whitened = W.t * firstOrderMoments
 
     val broadcasted_W = sc.broadcast(W)
