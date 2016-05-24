@@ -5,6 +5,8 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.stats._
 import breeze.storage.Zero
+import scalaxy.loops._
+
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
@@ -58,7 +60,7 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
     import evW._
     val result = DenseMatrix.zeros[W](B, b)
 
-    for (hashFamilyId <- 0 until B; tensorIndex <- multiIndexRange) {
+    for (hashFamilyId <- 0 until B optimized; tensorIndex <- multiIndexRange) {
       // For each index from the cartesian space [1,n_1]x[1,n_2]x...x[1,n_p]
       // compute the contribution of the tensor's element to the final hashes
       val hashedIndex: Int = (
@@ -116,7 +118,7 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
     import evW._
     val result = DenseMatrix.zeros[W](B, b)
 
-    for (hashFamilyId <- 0 until B; i <- 0 until a.rows; j <- 0 until a.cols) {
+    for (hashFamilyId <- 0 until B optimized; i <- 0 until a.rows optimized; j <- 0 until a.cols optimized) {
       // For each index from the cartesian space [1,n_1]x[1,n_2]x...x[1,n_p]
       // compute the contribution of the tensor's element to the final hashes
       val hashedIndex = (h((hashFamilyId, 0, i)) + h((hashFamilyId, 1, j))) % b
@@ -136,7 +138,7 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
     import evW._
     val result = DenseMatrix.zeros[W](B, b)
 
-    for (hashFamilyId <- 0 until B; i <- 0 until n(d)) {
+    for (hashFamilyId <- 0 until B optimized; i <- 0 until n(d) optimized) {
       val hashedIndex: Int = h((hashFamilyId, d, i))
       val hashCoeff: W = xi((hashFamilyId, d, i))
       result(hashFamilyId, hashedIndex) += hashCoeff * ev(v(i))

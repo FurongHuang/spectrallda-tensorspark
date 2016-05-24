@@ -18,9 +18,9 @@ object HashFunctions {
     // The current version only implemented for 2-wise independent hash functions
     assert(kWiseIndependent == 2)
 
-    if (!seed.isEmpty) {
+    seed.foreach { sd =>
       implicit val randBasis: RandBasis = new RandBasis(
-        new ThreadLocalRandomGenerator(new MersenneTwister(seed.get))
+        new ThreadLocalRandomGenerator(new MersenneTwister(sd))
       )
     }
 

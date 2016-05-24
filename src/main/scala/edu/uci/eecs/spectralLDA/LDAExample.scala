@@ -66,45 +66,45 @@ object LDAExample {
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
       opt[Double]("docConcentration")
-        .text(s"amount of topic smoothing to use (> 1.0) (-1=auto)." +
-        s"  default: ${defaultParams.docConcentration}")
+        .text(s"""amount of topic smoothing to use (> 1.0) (-1=auto).
+                 |  default: ${defaultParams.docConcentration}""".stripMargin('|'))
         .action((x, c) => c.copy(docConcentration = x))
       opt[Double]("topicConcentration")
-        .text(s"amount of term (word) smoothing to use (> 1.0) (-1=auto)." +
-        s"  default: ${defaultParams.topicConcentration}")
+        .text(s"""amount of term (word) smoothing to use (> 1.0) (-1=auto).
+                  |  default: ${defaultParams.topicConcentration}""".stripMargin('|'))
         .action((x, c) => c.copy(topicConcentration = x))
       opt[Int]("vocabSize")
-        .text(s"number of distinct word types to use, chosen by frequency. (-1=all)" +
-          s"  default: ${defaultParams.vocabSize}")
+        .text(s"""number of distinct word types to use, chosen by frequency. (-1=all)
+                 |  default: ${defaultParams.vocabSize}""".stripMargin('|'))
         .action((x, c) => c.copy(vocabSize = x))
       opt[Int]("libsvm")
-        .text("whether to use libsvm data or real text (0=real text, 1=libsvm data)" +
-        s"  default:${defaultParams.libsvm}")
+        .text(s"""whether to use libsvm data or real text (0=real text, 1=libsvm data)
+                 |  default:${defaultParams.libsvm}""".stripMargin('|'))
         .action((x, c) => c.copy(libsvm = x))
       opt[String]("stopwordFile")
-        .text(s"filepath for a list of stopwords. Note: This must fit on a single machine." +
-        s"  default: ${defaultParams.stopwordFile}")
+        .text(s"""filepath for a list of stopwords. Note: This must fit on a single machine.
+                 |  default: ${defaultParams.stopwordFile}""".stripMargin('|'))
         .action((x, c) => c.copy(stopwordFile = x))
       opt[String]("algorithm")
-        .text(s"inference algorithm to use. em and online are supported." +
-        s" default: ${defaultParams.algorithm}")
+        .text(s"""inference algorithm to use. em and online are supported.
+                 | default: ${defaultParams.algorithm}""".stripMargin('|'))
         .action((x, c) => c.copy(algorithm = x))
       opt[String]("outputDir")
-        .text(s"output write path." +
-        s" default: ${defaultParams.outputDir}")
+        .text(s"""output write path.
+                 | default: ${defaultParams.outputDir}""".stripMargin('|'))
         .action((x, c) => c.copy(outputDir = x))
       opt[String]("checkpointDir")
-        .text(s"Directory for checkpointing intermediate results." +
-        s"  Checkpointing helps with recovery and eliminates temporary shuffle files on disk." +
-        s"  default: ${defaultParams.checkpointDir}")
+        .text(s"""Directory for checkpointing intermediate results.
+                 |  Checkpointing helps with recovery and eliminates temporary shuffle files on disk.
+                 |  default: ${defaultParams.checkpointDir}""".stripMargin('|'))
         .action((x, c) => c.copy(checkpointDir = Some(x)))
       opt[Int]("checkpointInterval")
-        .text(s"Iterations between each checkpoint.  Only used if checkpointDir is set." +
-        s" default: ${defaultParams.checkpointInterval}")
+        .text(s"""Iterations between each checkpoint.  Only used if checkpointDir is set.
+                 |  default: ${defaultParams.checkpointInterval}""".stripMargin('|'))
         .action((x, c) => c.copy(checkpointInterval = x))
       arg[String]("<input>...")
-        .text("input paths (directories) to plain text corpora." +
-        "  Each text file line should hold 1 document.")
+        .text("""input paths (directories) to plain text corpora.
+              |  Each text file line should hold 1 document.""".stripMargin('|'))
         .unbounded()
         .required()
         .action((x, c) => c.copy(input = c.input :+ x))
@@ -134,7 +134,7 @@ object LDAExample {
     val preprocessElapsed = (System.nanoTime() - preprocessStart) / 1e9
 
     println()
-    println(s"Corpus summary:")
+    println("Corpus summary:")
     println(s"\t Training set size: $actualCorpusSize documents")
     println(s"\t Vocabulary size: $actualVocabSize terms")
     println(s"\t Training set size: $actualNumTokens tokens")
@@ -158,21 +158,19 @@ object LDAExample {
       .setDocConcentration(params.docConcentration)
       .setTopicConcentration(params.topicConcentration)
       .setCheckpointInterval(params.checkpointInterval)
-    if (params.checkpointDir.nonEmpty) {
-      sc.setCheckpointDir(params.checkpointDir.get)
-    }
+    params.checkpointDir.foreach{ dir => sc.setCheckpointDir(dir) }
     val startTime = System.nanoTime()
     val ldaModel = lda.run(corpus)
     val elapsed = (System.nanoTime() - startTime) / 1e9
 
-    println(s"Finished training LDA model.  Summary:")
-    println(s"\t Training time: $elapsed sec")
+    println(s"""Finished training LDA model.  Summary:
+               |\t Training time: $elapsed sec""")
 
     //time
     val thisK = params.k
 
     val writer_time = new PrintWriter(new File(params.outputDir + s"/VI_runningTime_k$thisK" + ".txt"))
-    
+
 
     if (ldaModel.isInstanceOf[DistributedLDAModel]) {
       val distLDAModel = ldaModel.asInstanceOf[DistributedLDAModel]
@@ -181,7 +179,7 @@ object LDAExample {
       writer_time.write(s"$elapsed sec,\t Training data average log likelihood: $avgLogLikelihood\n")
     }
 
-    writer_time.close() 
+    writer_time.close()
     // beta
     val beta_mllib = ldaModel.topicsMatrix
     //val beta = beta_mllib.toBreeze()
@@ -189,17 +187,17 @@ object LDAExample {
 
 
     val localMatrix: List[Array[Double]] = beta_mllib
-    	.transpose  // Transpose since .toArray is column major
-    	.toArray
-    	.grouped(beta_mllib.numCols)
-    	.toList
+        .transpose  // Transpose since .toArray is column major
+        .toArray
+        .grouped(beta_mllib.numCols)
+        .toList
 
     val lines: List[String] = localMatrix
-    	.map(line => line.mkString(" "))
+        .map(line => line.mkString(" "))
 
     sc.parallelize(lines)
-    	.repartition(1)
-    	.saveAsTextFile(params.outputDir + s"/VI_beta_k$thisK" + ".txt")
+        .repartition(1)
+        .saveAsTextFile(params.outputDir + s"/VI_beta_k$thisK" + ".txt")
 
 
 
@@ -208,7 +206,7 @@ object LDAExample {
     // Print the topics, showing the top-weighted terms for each topic.
     val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 10)
     val topics = topicIndices.map { case (terms, termWeights) =>
-      terms.zip(termWeights).map { case (term, weight) => (vocabArray(term.toInt), weight) }
+      terms.zip(termWeights).map { case (term, weight) => (vocabArray(term), weight) }
     }
     println(s"${params.k} topics:")
     topics.zipWithIndex.foreach { case (topic, i) =>
@@ -230,7 +228,7 @@ object LDAExample {
       paths: Seq[String],
       vocabSize: Int,
       stopwordFile: String): (RDD[(Long, Vector)], Array[String], Long) = {
-	
+
     val sqlContext = SQLContext.getOrCreate(sc)
     import sqlContext.implicits._
 
@@ -271,9 +269,9 @@ object LDAExample {
       model.stages(2).asInstanceOf[CountVectorizerModel].vocabulary,  // vocabulary
       documents.map(_._2.numActives).sum().toLong) // total token count
   }
-  
-  
-  
+
+
+
   private def processDocuments_synthetic(sc: SparkContext, paths: Seq[String], vocabSize: Int): (RDD[(Long, Vector)], Array[String], Long) ={
     val mypath: String = paths.mkString(",")
     println(mypath)
@@ -282,7 +280,7 @@ object LDAExample {
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)
     (mydocuments, vocabarray, vocabsize.toLong)
   }
-  
+
   private def loadLibSVMFile2sparseVector(
         sc: SparkContext,
         path: String,
@@ -310,7 +308,7 @@ object LDAExample {
       numFeatures
     } else {
       parsed.persist(StorageLevel.MEMORY_ONLY)
-      parsed.map { case (label, indices, values) =>
+      parsed.map { case (_ , indices, _) =>
         indices.lastOption.getOrElse(0)
       }.reduce(math.max) + 1
     }
@@ -319,21 +317,20 @@ object LDAExample {
      (label, Vectors.sparse(d, indices, values))
     }
   }
-  
+
   private def loadLibSVMFile2sparseVector(
       sc: SparkContext,
       path: String,
       multiclass: Boolean,
       numFeatures: Int,
       minPartitions: Int): RDD[(Long, Vector)] = loadLibSVMFile2sparseVector(sc, path, numFeatures, minPartitions)
-    
+
   private def loadLibSVMFile2sparseVector(
       sc: SparkContext,
       path: String,
       numFeatures: Int): RDD[(Long, Vector)] = loadLibSVMFile2sparseVector(sc, path, numFeatures, sc.defaultMinPartitions)
-    
+
   private def loadLibSVMFile2sparseVector(sc: SparkContext, path: String): RDD[(Long, Vector)] = loadLibSVMFile2sparseVector(sc, path, -1)
 
 }
 // scalastyle:on println
-
