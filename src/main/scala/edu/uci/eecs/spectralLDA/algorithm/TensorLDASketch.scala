@@ -12,24 +12,30 @@ import org.apache.spark.rdd.RDD
 class TensorLDASketch(dimK: Int,
                       alpha0: Double,
                       maxIterations: Int = 1000,
-                      tolerance: Double = 1e-9,
-                      sketcher: TensorSketcher[Double, Double]) extends Serializable {
+                      sketcher: TensorSketcher[Double, Double],
+                      randomisedSVD: Boolean = true,
+                      nonNegativeDocumentConcentration: Boolean = true)
+                     (implicit tolerance: Double = 1e-9)
+  extends Serializable {
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
   : (DenseMatrix[Double], DenseVector[Double]) = {
-    val documents_ = documents map {
-      case (id, wc) => (id, sum(wc), wc)
-    }
-
     val myDataSketch: DataCumulantSketch = DataCumulantSketch.getDataCumulant(
       dimK, alpha0,
-      tolerance,
-      documents_,
-      sketcher
+      documents,
+      sketcher,
+      randomisedSVD = randomisedSVD
     )
 
-    val myALS: ALSSketch = new ALSSketch(dimK, myDataSketch, sketcher)
-    myALS.run(documents.sparkContext, maxIterations)
+    val myALS: ALSSketch = new ALSSketch(
+      dimK,
+      myDataSketch,
+      sketcher,
+      nonNegativeDocumentConcentration = nonNegativeDocumentConcentration
+    )
+
+    val (beta, alpha) = myALS.run
+    (beta, alpha * alpha0)
   }
 
 }

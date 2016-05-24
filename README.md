@@ -1,7 +1,8 @@
 # Spectral LDA on Spark
 
 ## Summary 
-* This code implements a spectral (third order tensor decomposition) learning method for learning LDA topic model on Spark. 
+* This code implements a Spectral (third order tensor decomposition) learning method for learning LDA topic model on Spark.
+* We also implemented a Spectral LDA model via sketching to accelerate tensor building and decomposition.
 * Version: 1.0
 * [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
 
@@ -49,6 +50,7 @@
 
 ## References
 * White Paper: http://newport.eecs.uci.edu/anandkumar/pubs/whitepaper.pdf
+* Fast and Guaranteed Tensor Decomposition via Sketching: http://arxiv.org/abs/1506.04448
 * New York Times Result Visualization: http://newport.eecs.uci.edu/anandkumar/Lab/Lab_sub/NewYorkTimes3.html
 
 ## Who do I talk to?
