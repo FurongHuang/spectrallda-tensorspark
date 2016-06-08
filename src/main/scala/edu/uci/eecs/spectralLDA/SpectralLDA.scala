@@ -103,7 +103,7 @@ object SpectralLDA {
       TextProcessor.processDocuments_libsvm(sc, params.input, params.vocabSize)
     }
     else {
-      TextProcessor.processDocuments(sc, params.input, params.stopWordFile, params.vocabSize)
+      TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
     }
     println("Finished reading data.")
 

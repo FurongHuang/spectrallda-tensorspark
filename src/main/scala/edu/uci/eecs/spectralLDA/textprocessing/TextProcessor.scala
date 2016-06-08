@@ -8,17 +8,20 @@ import scala.collection.mutable
 
 
 object TextProcessor {
-  def processDocuments(sc: SparkContext, paths: Seq[String], stopwordFile: String, vocabSize: Int)
+  def processDocuments(sc: SparkContext, paths: String, stopwordFile: String, vocabSize: Int)
   : (RDD[(Long, breeze.linalg.SparseVector[Double])], Array[String]) = {
-    val textRDD: RDD[String] = sc.textFile(paths.mkString(","))
-    println("successfully read the raw data." )
+    val textRDD: RDD[(String, String)] = sc.wholeTextFiles(paths)
     textRDD.cache()
 
     // Split text into words
     val tokenizer: SimpleTokenizer = new SimpleTokenizer(sc, stopwordFile)
-    val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex().map { case (text, id) =>
-      id -> tokenizer.getWords(text)
-    }
+
+    val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex()
+      .map {
+        case ((filename, text), id) => (text, id)
+      }.map {
+        case (text, id) => id -> tokenizer.getWords(text)
+      }
     tokenized.cache()
 
     // Counts words: RDD[(word, wordCount)]
