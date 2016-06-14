@@ -5,26 +5,20 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
-import edu.uci.eecs.spectralLDA.datamoments.DataCumulantSketch
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag}
+import breeze.linalg.{*, DenseMatrix, DenseVector}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.stats.distributions.{Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
-import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 
 import scala.language.postfixOps
-import scala.util.control.Breaks._
 
 class ALSSketch(dimK: Int,
-                myDataSketch: DataCumulantSketch,
+                fft_sketch_T: DenseMatrix[Complex],
                 sketcher: TensorSketcher[Double, Double],
-                maxIterations: Int = 1000,
-                nonNegativeDocumentConcentration: Boolean = true) extends Serializable {
-
-  val fft_sketch_T: DenseMatrix[Complex] = myDataSketch.fftSketchWhitenedM3
-  val unwhiteningMatrix: DenseMatrix[Double] = myDataSketch.unwhiteningMatrix
+                maxIterations: Int = 1000
+                ) extends Serializable {
 
   def run(implicit randBasis: RandBasis = Rand)
         : (DenseMatrix[Double], DenseVector[Double]) = {
@@ -58,16 +52,7 @@ class ALSSketch(dimK: Int,
     }
     println("Finished ALS iterations.")
 
-    val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
-    val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = unwhiteningMatrix * A * diag(lambda)
-
-    if (nonNegativeDocumentConcentration) {
-      val topicWordMatrix_normed: DenseMatrix[Double] = NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix)
-      (topicWordMatrix_normed, alpha)
-    }
-    else {
-      (topicWordMatrix, alpha)
-    }
+    (A, lambda)
   }
 
   private def updateALSiteration(fft_sketch_T: DenseMatrix[Complex],
