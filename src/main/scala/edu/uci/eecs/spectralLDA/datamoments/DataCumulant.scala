@@ -5,7 +5,7 @@ package edu.uci.eecs.spectralLDA.datamoments
  * Created by Furong Huang on 11/2/15.
  */
 
-import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
+import edu.uci.eecs.spectralLDA.utils.RandNLA
 import breeze.linalg._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -38,7 +38,7 @@ object DataCumulant {
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
-    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = whiten(sc, alpha0,
+    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = RandNLA.whiten(sc, alpha0,
       dimVocab, dimK, numDocs, firstOrderMoments, documents)
     println("Finished calculating second order moments and whitening matrix.")
 
@@ -78,60 +78,11 @@ object DataCumulant {
     new DataCumulant(thirdOrderMoments, unwhiteningMatrix)
   }
 
-  private def whiten(sc: SparkContext,
-                     alpha0: Double,
-                     vocabSize: Int, dimK: Int,
-                     numDocs: Long,
-                     firstOrderMoments: DenseVector[Double],
-                     documents: RDD[(Long, Double, SparseVector[Double])])
-  : (DenseMatrix[Double], DenseVector[Double]) = {
-    val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
-    val para_shift: Double = alpha0
-
-    val SEED_random: Long = System.currentTimeMillis
-    val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2, SEED_random)
-    val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
-    val firstOrderMoments_broadcasted: Broadcast[breeze.linalg.DenseVector[Double]] = sc.broadcast(firstOrderMoments.toDenseVector)
-
-    val M2_a_S: DenseMatrix[Double] = documents map {
-      this_document => accumulate_M_mul_S(
-        vocabSize, dimK * 2,
-        alpha0,
-        firstOrderMoments_broadcasted.value,
-        gaussianRandomMatrix_broadcasted.value,
-        this_document._3, this_document._2)
-    } reduce(_ + _)
-
-    M2_a_S :*= para_main
-    val shiftedMatrix: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)
-    M2_a_S -= shiftedMatrix :* para_shift
-
-    val Q = AlgebraUtil.orthogonalizeMatCols(M2_a_S)
-
-    val M2_a_Q: DenseMatrix[Double] = documents map {
-      this_document => accumulate_M_mul_S(
-        vocabSize,
-        dimK * 2, alpha0,
-        firstOrderMoments_broadcasted.value,
-        Q,
-        this_document._3, this_document._2)
-    } reduce(_ + _)
-    M2_a_Q :*= para_main
-    val shiftedMatrix2: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * Q)
-    M2_a_Q -= shiftedMatrix2 :* para_shift
-
-    // Note: eigenvectors * Diag(eigenvalues) = M2_a_Q
-    val svd.SVD(u: breeze.linalg.DenseMatrix[Double], s: breeze.linalg.DenseVector[Double], v: breeze.linalg.DenseMatrix[Double]) = svd(M2_a_Q.t * M2_a_Q)
-    val eigenVectors: DenseMatrix[Double] = (M2_a_Q * u) * breeze.linalg.diag(s.map(entry => 1.0 / math.sqrt(entry)))
-    val eigenValues: DenseVector[Double] = s.map(entry => math.sqrt(entry))
-    (eigenVectors(::, 0 until dimK), eigenValues(0 until dimK))
-  }
 
   private def update_firstOrderMoments(dim: Int, Wc: breeze.linalg.DenseVector[Double], len: Double) = {
     val M1: DenseVector[Double] = Wc / len
     M1
   }
-
 
   private def update_thirdOrderMoments(dimK: Int, alpha0: Double, m1: DenseVector[Double], Wc: DenseVector[Double], len: Double): DenseMatrix[Double] = {
     val len_calibrated: Double = math.max(len, 3.0)
@@ -162,38 +113,6 @@ object DataCumulant {
       Ta(i, dimK * i + i) += 2.0 * scale3fac * Wc(i)
     }
     Ta
-  }
-
-  private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,
-                         m1: breeze.linalg.DenseVector[Double], S: breeze.linalg.DenseMatrix[Double], Wc: breeze.linalg.SparseVector[Double], len: Double) = {
-    assert(dimVocab == Wc.length)
-    assert(dimVocab == m1.length)
-    assert(dimVocab == S.rows)
-    assert(dimK == S.cols)
-    val len_calibrated: Double = math.max(len, 3.0)
-
-    val M2_a = breeze.linalg.DenseMatrix.zeros[Double](dimVocab, dimK)
-
-    val norm_length: Double = 1.0 / (len_calibrated * (len_calibrated - 1.0))
-    val data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
-
-    var offset = 0
-    while (offset < Wc.activeSize) {
-      val token: Int = Wc.indexAt(offset)
-      val count: Double = Wc.valueAt(offset)
-      data_mul_S += S(token, ::).t.map(x => x * count)
-      offset += 1
-    }
-
-    offset = 0
-    while (offset < Wc.activeSize) {
-      val token: Int = Wc.indexAt(offset)
-      val count: Double = Wc.valueAt(offset)
-      M2_a(token, ::) += (data_mul_S - S(token, ::).t).map(x => x * count * norm_length).t
-
-      offset += 1
-    }
-    M2_a
   }
 
   private def project(dimVocab: Int, dimK: Int, alpha0: Double,
