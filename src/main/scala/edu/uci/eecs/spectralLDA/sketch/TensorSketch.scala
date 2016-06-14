@@ -4,9 +4,10 @@ import breeze.math._
 import breeze.linalg._
 import breeze.numerics._
 import breeze.stats._
+import breeze.stats.distributions.{Rand, RandBasis}
 import breeze.storage.Zero
-import scalaxy.loops._
 
+import scalaxy.loops._
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
@@ -164,11 +165,11 @@ object TensorSketcher {
           (n: Seq[Int],
            b: Int = Math.pow(2, 12).toInt,
            B: Int = 1,
-           kWiseIndependent: Int = 2,
-           seed: Option[Int] = None)
+           kWiseIndependent: Int = 2)
+          (implicit randBasis: RandBasis = Rand)
           : TensorSketcher[V, W] =  {
     val (xi: Tensor[(Int, Int, Int), W], h: Tensor[(Int, Int, Int), Int]) =
-      HashFunctions[W](n, b, B, kWiseIndependent, seed)
+      HashFunctions[W](n, b, B, kWiseIndependent)
     new TensorSketcher[V, W](n, b, B, xi, h)
   }
 }
