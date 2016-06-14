@@ -7,21 +7,18 @@ package edu.uci.eecs.spectralLDA.utils
 
 import breeze.linalg._
 import breeze.numerics._
+import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
 import scalaxy.loops._
 import scala.language.postfixOps
 
-object AlgebraUtil{
-  private val SEED_random: Long = System.currentTimeMillis
+object AlgebraUtil {
   private val TOLERANCE: Double = 1.0e-9
 
-  def gaussian(rows: Int, cols: Int, seed: Long = SEED_random): DenseMatrix[Double] = {
-    val vectorizedOutputMatrix: Array[Double] = new Array[Double](rows * cols)
-    val rand: scala.util.Random = new scala.util.Random(seed)
-    for (i: Int <- vectorizedOutputMatrix.indices) {
-      vectorizedOutputMatrix(i) = rand.nextGaussian()
-    }
-    val gaussianMatrix: DenseMatrix[Double] = new DenseMatrix(rows, cols, vectorizedOutputMatrix)
+  def gaussian(rows: Int, cols: Int)
+              (implicit randBasis: RandBasis = Rand): DenseMatrix[Double] = {
+    val gaussianMatrix: DenseMatrix[Double] = new DenseMatrix(rows, cols,
+      Gaussian(0, 1).sample(rows * cols).toArray)
     matrixNormalization(gaussianMatrix)
   }
 

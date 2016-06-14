@@ -9,6 +9,7 @@ import breeze.linalg._
 import breeze.math.Complex
 import breeze.numerics.sqrt
 import breeze.signal.fourierTr
+import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -47,7 +48,7 @@ object DataCumulantSketch {
                       documents: RDD[(Long, SparseVector[Double])],
                       sketcher: TensorSketcher[Double, Double],
                       randomisedSVD: Boolean = true)
-                     (implicit tolerance: Double = 1e-9)
+                     (implicit tolerance: Double = 1e-9, randBasis: RandBasis = Rand)
   : DataCumulantSketch = {
     val sc: SparkContext = documents.sparkContext
 
@@ -72,20 +73,20 @@ object DataCumulantSketch {
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
+    val E_x1_x2: DenseMatrix[Double] = validDocuments
+      .map { case (_, len, vec) =>
+        val v2 = vec.toDenseVector
+        (v2 * v2.t - diag(v2)) / (len * (len - 1))
+      }
+      .reduce(_ + _)
+      .map(_ / numDocs.toDouble)
+    val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = if (randomisedSVD) {
       RandNLA.whiten(sc, alpha0,
         dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
     }
     else {
-      val E_x1_x2: DenseMatrix[Double] = validDocuments
-        .map { case (_, len, vec) =>
-          val v2 = vec.toDenseVector
-          (v2 * v2.t - diag(v2)) / (len * (len - 1))
-        }
-        .reduce(_ + _)
-        .map(_ / numDocs.toDouble)
-      val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
-
       val eigSym.EigSym(sigma, u) = eigSym((alpha0 + 1) * M2)
       val i = argsort(sigma)
       (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)

@@ -1,13 +1,13 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
 import breeze.linalg._
-import breeze.stats.distributions.{Dirichlet, Multinomial}
+import breeze.stats.distributions.{Dirichlet, Multinomial, RandBasis, ThreadLocalRandomGenerator}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.scalatest._
 import org.scalatest.Matchers._
-
 import org.apache.spark.SparkContext
 import edu.uci.eecs.spectralLDA.testharness.Context
+import org.apache.commons.math3.random.MersenneTwister
 
 class TensorLDASketchTest extends FlatSpec with Matchers {
 
@@ -52,6 +52,9 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       numTokensPerDocument = 1000
     )
     val documentsRDD = sc.parallelize(documents)
+
+    implicit val randBasis: RandBasis =
+      new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(347529)))
 
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(3, 3, 3),

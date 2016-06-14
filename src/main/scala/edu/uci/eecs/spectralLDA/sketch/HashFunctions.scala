@@ -4,7 +4,6 @@ import breeze.math._
 import breeze.linalg._
 import breeze.stats.distributions._
 import breeze.storage.Zero
-import org.apache.commons.math3.random.MersenneTwister
 
 /** Generate independent hash functions h and sign functions \xi */
 object HashFunctions {
@@ -18,13 +17,6 @@ object HashFunctions {
       : (Tensor[(Int, Int, Int), W], Tensor[(Int, Int, Int), Int]) = {
     // The current version only implemented for 2-wise independent hash functions
     assert(kWiseIndependent == 2)
-
-    /*implicit val randBasis: RandBasis = seed match {
-      case Some(r) =>
-        new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(r)))
-      case None =>
-        Rand
-    }*/
 
     val uniform = new Uniform(0, 1)
     val ev = implicitly[Numeric[W]]

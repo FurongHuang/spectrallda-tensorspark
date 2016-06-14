@@ -9,6 +9,7 @@ import edu.uci.eecs.spectralLDA.datamoments.DataCumulantSketch
 import breeze.linalg.{*, DenseMatrix, DenseVector, diag}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
+import breeze.stats.distributions.{Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
@@ -25,14 +26,11 @@ class ALSSketch(dimK: Int,
   val fft_sketch_T: DenseMatrix[Complex] = myDataSketch.fftSketchWhitenedM3
   val unwhiteningMatrix: DenseMatrix[Double] = myDataSketch.unwhiteningMatrix
 
-  def run: (DenseMatrix[Double], DenseVector[Double]) = {
-    val SEED_A: Long = System.currentTimeMillis
-    val SEED_B: Long = System.currentTimeMillis
-    val SEED_C: Long = System.currentTimeMillis
-
-    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_A)
-    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_B)
-    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_C)
+  def run(implicit randBasis: RandBasis = Rand)
+        : (DenseMatrix[Double], DenseVector[Double]) = {
+    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
 
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)

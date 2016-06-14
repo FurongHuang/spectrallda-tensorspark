@@ -6,6 +6,7 @@ package edu.uci.eecs.spectralLDA.algorithm
   */
 import edu.uci.eecs.spectralLDA.datamoments.{DataCumulant, DataCumulantSketch}
 import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, sum}
+import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.apache.spark.rdd.RDD
 
@@ -19,6 +20,7 @@ class TensorLDASketch(dimK: Int,
   extends Serializable {
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
+         (implicit randBasis: RandBasis = Rand)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     val myDataSketch: DataCumulantSketch = DataCumulantSketch.getDataCumulant(
       dimK, alpha0,

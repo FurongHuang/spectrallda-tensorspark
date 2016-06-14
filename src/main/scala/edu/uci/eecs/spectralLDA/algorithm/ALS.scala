@@ -8,8 +8,10 @@
  import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
  import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
  import breeze.linalg.{DenseMatrix, DenseVector}
+ import breeze.stats.distributions.{Rand, RandBasis}
  import org.apache.spark.rdd.RDD
  import org.apache.spark.SparkContext
+
  import scalaxy.loops._
  import scala.language.postfixOps
  import scala.util.control.Breaks._
@@ -17,17 +19,15 @@
 
 class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
 
-  def run(sc:SparkContext, maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
+  def run(sc:SparkContext, maxIterations: Int)
+         (implicit randBasis: RandBasis = Rand)
+     : (DenseMatrix[Double], DenseVector[Double])={
     val T: breeze.linalg.DenseMatrix[Double] = myData.thirdOrderMoments
     val unwhiteningMatrix: DenseMatrix[Double] = myData.unwhiteningMatrix
 
-    val SEED_A: Long = System.currentTimeMillis
-    val SEED_B: Long = System.currentTimeMillis
-    val SEED_C: Long = System.currentTimeMillis
-
-    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_A)
-    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_B)
-    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_C)
+    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
 
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)

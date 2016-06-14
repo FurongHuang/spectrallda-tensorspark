@@ -7,11 +7,12 @@ package edu.uci.eecs.spectralLDA.datamoments
 
 import edu.uci.eecs.spectralLDA.utils.RandNLA
 import breeze.linalg._
+import breeze.stats.distributions.{Rand, RandBasis}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
-import scala.collection.mutable
 
+import scala.collection.mutable
 import scalaxy.loops._
 import scala.language.postfixOps
 
@@ -24,6 +25,7 @@ object DataCumulant {
                       alpha0: Double,
                       tolerance: Double,
                       documents: RDD[(Long, Double, SparseVector[Double])])
+                     (implicit randBasis: RandBasis = Rand)
         : DataCumulant = {
     val sc: SparkContext = documents.sparkContext
     val dimVocab = documents.take(1)(0)._3.length

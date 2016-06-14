@@ -1,6 +1,7 @@
 package edu.uci.eecs.spectralLDA.utils
 
 import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, svd}
+import breeze.stats.distributions.{Rand, RandBasis}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -13,12 +14,13 @@ object RandNLA {
                      numDocs: Long,
                      firstOrderMoments: DenseVector[Double],
                      documents: RDD[(Long, Double, SparseVector[Double])])
+            (implicit randBasis: RandBasis = Rand)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
     val para_shift: Double = alpha0
 
-    val SEED_random: Long = System.currentTimeMillis
-    val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2, SEED_random)
+    //val SEED_random: Long = System.currentTimeMillis
+    val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
     val firstOrderMoments_broadcasted: Broadcast[breeze.linalg.DenseVector[Double]] = sc.broadcast(firstOrderMoments.toDenseVector)
 
