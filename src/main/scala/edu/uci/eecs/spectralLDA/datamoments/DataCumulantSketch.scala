@@ -70,19 +70,19 @@ object DataCumulantSketch {
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
-    val E_x1_x2: DenseMatrix[Double] = validDocuments
-      .map { case (_, len, vec) =>
-        (TensorOps.spVectorTensorProd2d(vec) - diag(vec)) / (len * (len - 1))
-      }
-      .reduce(_ + _)
-      .map(_ / numDocs.toDouble).toDenseMatrix
-    val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
-
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = if (randomisedSVD) {
       RandNLA.whiten(sc, alpha0,
         dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
     }
     else {
+      val E_x1_x2: DenseMatrix[Double] = validDocuments
+        .map { case (_, len, vec) =>
+          (TensorOps.spVectorTensorProd2d(vec) - diag(vec)) / (len * (len - 1))
+        }
+        .reduce(_ + _)
+        .map(_ / numDocs.toDouble).toDenseMatrix
+      val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+
       val eigSym.EigSym(sigma, u) = eigSym((alpha0 + 1) * M2)
       val i = argsort(sigma)
       (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)
