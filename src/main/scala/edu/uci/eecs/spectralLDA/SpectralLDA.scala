@@ -100,7 +100,7 @@ object SpectralLDA {
 
     println("Start reading data...")
     val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = if (params.libsvm == 1) {
-      TextProcessor.processDocuments_libsvm(sc, params.input, params.vocabSize)
+      TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
     }
     else {
       TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
