@@ -1,6 +1,6 @@
 package edu.uci.eecs.spectralLDA.utils
 
-import breeze.linalg.{*, Counter, DenseMatrix, DenseVector, Tensor, max, norm}
+import breeze.linalg.{*, CSCMatrix, Counter, DenseMatrix, DenseVector, SparseVector, Tensor, max, norm}
 import breeze.math.{Complex, Semiring}
 import breeze.storage.Zero
 
@@ -55,5 +55,14 @@ object TensorOps {
       result(::, i) := krprod[V](A(::, i), B(::, i))
     }
     result
+  }
+
+  /** tensor product v * v.t given sparse vector v */
+  def spVectorTensorProd2d(v: SparseVector[Double]): CSCMatrix[Double] = {
+    val prod: CSCMatrix[Double] = CSCMatrix.zeros[Double](v.length, v.length)
+    for (i <- 0 until v.activeSize; j <- 0 until v.activeSize) {
+      prod(v.indexAt(i), v.indexAt(j)) = v.valueAt(i) * v.valueAt(j)
+    }
+    prod
   }
 }

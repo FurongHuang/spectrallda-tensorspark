@@ -4,7 +4,7 @@ package edu.uci.eecs.spectralLDA.datamoments
   * Data Cumulants Calculation.
   */
 
-import edu.uci.eecs.spectralLDA.utils.RandNLA
+import edu.uci.eecs.spectralLDA.utils.{RandNLA, TensorOps}
 import breeze.linalg._
 import breeze.math.Complex
 import breeze.numerics.sqrt
@@ -72,7 +72,7 @@ object DataCumulantSketch {
     println("Start calculating second order moments...")
     val E_x1_x2: DenseMatrix[Double] = validDocuments
       .map { case (_, len, vec) =>
-        (vec * vec.t - diag(vec)) / (len * (len - 1))
+        (TensorOps.spVectorTensorProd2d(vec) - diag(vec)) / (len * (len - 1))
       }
       .reduce(_ + _)
       .map(_ / numDocs.toDouble).toDenseMatrix
