@@ -21,16 +21,13 @@ object RandNLA {
     val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
     val para_shift: Double = alpha0
 
-    //val SEED_random: Long = System.currentTimeMillis
     val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
-    val firstOrderMoments_broadcasted: Broadcast[breeze.linalg.DenseVector[Double]] = sc.broadcast(firstOrderMoments.toDenseVector)
 
     val M2_a_S: DenseMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize, dimK * 2,
         alpha0,
-        firstOrderMoments_broadcasted.value,
         gaussianRandomMatrix_broadcasted.value,
         this_document._3, this_document._2)
     } reduce(_ + _)
@@ -45,7 +42,6 @@ object RandNLA {
       this_document => accumulate_M_mul_S(
         vocabSize,
         dimK * 2, alpha0,
-        firstOrderMoments_broadcasted.value,
         Q,
         this_document._3, this_document._2)
     } reduce(_ + _)
@@ -73,16 +69,13 @@ object RandNLA {
     val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
     val para_shift: Double = alpha0
 
-    //val SEED_random: Long = System.currentTimeMillis
     val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
-    val firstOrderMoments_broadcasted: Broadcast[breeze.linalg.DenseVector[Double]] = sc.broadcast(firstOrderMoments.toDenseVector)
 
     val M2_a_S: DenseMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize, dimK * 2,
         alpha0,
-        firstOrderMoments_broadcasted.value,
         gaussianRandomMatrix_broadcasted.value,
         this_document._3, this_document._2)
     } reduce(_ + _)
@@ -97,7 +90,6 @@ object RandNLA {
       this_document => accumulate_M_mul_S(
         vocabSize,
         dimK * 2, alpha0,
-        firstOrderMoments_broadcasted.value,
         q,
         this_document._3, this_document._2)
     } reduce(_ + _)
@@ -114,9 +106,8 @@ object RandNLA {
 
 
   private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,
-                                 m1: breeze.linalg.DenseVector[Double], S: breeze.linalg.DenseMatrix[Double], Wc: breeze.linalg.SparseVector[Double], len: Double) = {
+                                 S: breeze.linalg.DenseMatrix[Double], Wc: breeze.linalg.SparseVector[Double], len: Double) = {
     assert(dimVocab == Wc.length)
-    assert(dimVocab == m1.length)
     assert(dimVocab == S.rows)
     assert(dimK == S.cols)
     val len_calibrated: Double = math.max(len, 3.0)
