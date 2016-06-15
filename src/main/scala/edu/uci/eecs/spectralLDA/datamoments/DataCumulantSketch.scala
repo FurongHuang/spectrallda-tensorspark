@@ -11,12 +11,9 @@ import breeze.numerics.sqrt
 import breeze.signal.fourierTr
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
-import scala.collection.mutable
-import scalaxy.loops._
 import scala.language.postfixOps
 
 
@@ -66,20 +63,19 @@ object DataCumulantSketch {
     println("Start calculating first order moments...")
     val firstOrderMoments: DenseVector[Double] = validDocuments
       .map {
-        case (_, length, vec) => vec.toDenseVector / length
+        case (_, length, vec) => vec / length.toDouble
       }
       .reduce(_ + _)
-      .map(_ / numDocs.toDouble)
+      .map(_ / numDocs.toDouble).toDenseVector
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
     val E_x1_x2: DenseMatrix[Double] = validDocuments
       .map { case (_, len, vec) =>
-        val v2 = vec.toDenseVector
-        (v2 * v2.t - diag(v2)) / (len * (len - 1))
+        (vec * vec.t - diag(vec)) / (len * (len - 1))
       }
       .reduce(_ + _)
-      .map(_ / numDocs.toDouble)
+      .map(_ / numDocs.toDouble).toDenseMatrix
     val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
 
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = if (randomisedSVD) {
