@@ -12,6 +12,10 @@ object TensorOps {
     norm(norm(m(::, *)).toDenseVector)
   }
 
+  def dmatrixNorm(m: DenseMatrix[Double]): Double = {
+    norm(norm(m(::, *)).toDenseVector)
+  }
+
   def unfoldTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
         (t: Tensor[Seq[Int], V], n: Seq[Int]): DenseMatrix[V] = {
     assert(n.length == 3)
