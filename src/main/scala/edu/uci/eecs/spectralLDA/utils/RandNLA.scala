@@ -2,7 +2,7 @@ package edu.uci.eecs.spectralLDA.utils
 
 import breeze.linalg.eigSym.EigSym
 import breeze.linalg.qr.QR
-import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, eigSym, qr, svd}
+import breeze.linalg.{CSCMatrix, DenseMatrix, DenseVector, SparseVector, argtopk, eigSym, qr, svd}
 import breeze.stats.distributions.{Rand, RandBasis}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
@@ -24,7 +24,7 @@ object RandNLA {
     val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
 
-    val M2_a_S: DenseMatrix[Double] = documents map {
+    val M2_a_S_1: CSCMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize, dimK * 2,
         alpha0,
@@ -32,22 +32,24 @@ object RandNLA {
         this_document._3, this_document._2)
     } reduce(_ + _)
 
-    M2_a_S :*= para_main
-    val shiftedMatrix: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)
-    M2_a_S -= shiftedMatrix :* para_shift
+    val M2_a_S: DenseMatrix[Double] = M2_a_S_1.toDense * para_main
+              - (firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)) * para_shift
+    gaussianRandomMatrix_broadcasted.destroy
 
     val Q = AlgebraUtil.orthogonalizeMatCols(M2_a_S)
 
-    val M2_a_Q: DenseMatrix[Double] = documents map {
+    val Q_broadcasted = sc.broadcast(Q)
+    val M2_a_Q_1: CSCMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize,
         dimK * 2, alpha0,
-        Q,
+        Q_broadcasted.value,
         this_document._3, this_document._2)
     } reduce(_ + _)
-    M2_a_Q :*= para_main
-    val shiftedMatrix2: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * Q)
-    M2_a_Q -= shiftedMatrix2 :* para_shift
+
+    val M2_a_Q: DenseMatrix[Double] = M2_a_Q_1.toDense * para_main
+          - (firstOrderMoments * (firstOrderMoments.t * Q)) * para_shift
+    Q_broadcasted.destroy
 
     // Note: eigenvectors * Diag(eigenvalues) = M2_a_Q
     val svd.SVD(u: breeze.linalg.DenseMatrix[Double], s: breeze.linalg.DenseVector[Double], v: breeze.linalg.DenseMatrix[Double]) = svd(M2_a_Q.t * M2_a_Q)
@@ -72,7 +74,7 @@ object RandNLA {
     val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
 
-    val M2_a_S: DenseMatrix[Double] = documents map {
+    val M2_a_S_1: CSCMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize, dimK * 2,
         alpha0,
@@ -80,39 +82,47 @@ object RandNLA {
         this_document._3, this_document._2)
     } reduce(_ + _)
 
-    M2_a_S :*= para_main
-    val shiftedMatrix: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)
-    M2_a_S -= shiftedMatrix :* para_shift
+    val M2_a_S: DenseMatrix[Double] = M2_a_S_1.toDense * para_main
+          - (firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)) * para_shift
+    gaussianRandomMatrix_broadcasted.destroy
 
     val QR(q: DenseMatrix[Double], _) = qr.reduced(M2_a_S)
-
-    val M2_a_Q: DenseMatrix[Double] = documents map {
+    val q_broadcasted = sc.broadcast(q)
+    
+    val M2_a_Q_1: CSCMatrix[Double] = documents map {
       this_document => accumulate_M_mul_S(
         vocabSize,
         dimK * 2, alpha0,
-        q,
+        q_broadcasted.value,
         this_document._3, this_document._2)
     } reduce(_ + _)
-    M2_a_Q :*= para_main
-    val shiftedMatrix2: breeze.linalg.DenseMatrix[Double] = firstOrderMoments * (firstOrderMoments.t * q)
-    M2_a_Q -= shiftedMatrix2 :* para_shift
+    val M2_a_Q = M2_a_Q_1.toDense * para_main
+          - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift
 
     // Note: eigenvectors * Diag(eigenvalues) = M2_a_Q
-    val EigSym(s: DenseVector[Double], u: DenseMatrix[Double]) = eigSym(q.t * M2_a_Q)
+    val w = q.t * M2_a_Q
+    val EigSym(s: DenseVector[Double], u: DenseMatrix[Double]) = eigSym((w + w.t) / 2.0)
     val idx = argtopk(s, dimK)
-    (q * u(::, idx).copy, s(idx).copy.toDenseVector)
+
+    val u_M2: DenseMatrix[Double] = q * u(::, idx).copy
+    val s_M2: DenseVector[Double] = s(idx).copy.toDenseVector
+    
+    q_broadcasted.destroy
+    (u_M2, s_M2)
   }
 
 
 
   private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,
-                                 S: breeze.linalg.DenseMatrix[Double], Wc: breeze.linalg.SparseVector[Double], len: Double) = {
+                                 S: breeze.linalg.DenseMatrix[Double],
+                                 Wc: breeze.linalg.SparseVector[Double], len: Double)
+        : CSCMatrix[Double] = {
     assert(dimVocab == Wc.length)
     assert(dimVocab == S.rows)
     assert(dimK == S.cols)
     val len_calibrated: Double = math.max(len, 3.0)
 
-    val M2_a = breeze.linalg.DenseMatrix.zeros[Double](dimVocab, dimK)
+    val M2_a: CSCMatrix[Double] = CSCMatrix.zeros[Double](dimVocab, dimK)
 
     val norm_length: Double = 1.0 / (len_calibrated * (len_calibrated - 1.0))
     val data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
@@ -129,7 +139,10 @@ object RandNLA {
     while (offset < Wc.activeSize) {
       val token: Int = Wc.indexAt(offset)
       val count: Double = Wc.valueAt(offset)
-      M2_a(token, ::) += (data_mul_S - S(token, ::).t).map(x => x * count * norm_length).t
+      val v: DenseVector[Double] = (data_mul_S - S(token, ::).t) * count * norm_length
+      for (j <- 0 until v.length) {
+        M2_a(token, j) = v(j)
+      }
 
       offset += 1
     }
