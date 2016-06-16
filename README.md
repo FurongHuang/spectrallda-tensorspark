@@ -54,6 +54,9 @@
 2. Now we're going to make the system native BLAS/LAPACK libraries available to `netlib4java`. On Mac, `netlib4java` will automatically find `veclib`; on Linux, the best option is to compile a copy of OpenBLAS as it provides the complete BLAS/CBLAS/LAPACK that `netlib4java` needs and it boasts of the best performance vs BLAS/ATLAS. Following the instructions on [https://github.com/xianyi/OpenBLAS/](https://github.com/xianyi/OpenBLAS/), it's as simple as 
 
     ```bash
+    # Make sure gfortran is installed,
+    # otherwise LAPACK routines won't get compiled
+
     make
     sudo make install
     ```
@@ -71,6 +74,7 @@
 
 Now if we run the above experiments again, any "WARN BLAS" or "WARN LAPACK" messages should have disappeared.
 
+**NOTE:** In Breeze the feature of sparse matrix is still experimental and it may not work with native BLAS/LAPACK, in this case use `alternatives --remove` to stop exposing the native libs to Spark. In our code `DataCumulant` and `DataCumulantSketch` will use heavily sparse matrices when computing M2 if we specify `randomisedSVD = true`.
 
 ### Dependencies
 
