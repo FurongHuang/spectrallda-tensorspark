@@ -40,7 +40,7 @@ object DataCumulant {
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
-    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = RandNLA.whiten(sc, alpha0,
+    val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = RandNLA.whiten2(sc, alpha0,
       dimVocab, dimK, numDocs, firstOrderMoments, documents)
     println("Finished calculating second order moments and whitening matrix.")
 

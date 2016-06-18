@@ -56,6 +56,7 @@ object DataCumulantSketch {
       .filter {
         case (_, len, _) => len >= 3
       }
+    validDocuments.cache()
 
     val dimVocab = validDocuments.take(1)(0)._3.length
     val numDocs = validDocuments.count()

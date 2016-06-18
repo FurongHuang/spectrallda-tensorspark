@@ -10,7 +10,7 @@ import org.apache.spark.rdd.RDD
 
 
 object RandNLA {
-  def whiten(sc: SparkContext,
+  /*def whiten(sc: SparkContext,
                      alpha0: Double,
                      vocabSize: Int, dimK: Int,
                      numDocs: Long,
@@ -56,7 +56,7 @@ object RandNLA {
     val eigenVectors: DenseMatrix[Double] = (M2_a_Q * u) * breeze.linalg.diag(s.map(entry => 1.0 / math.sqrt(entry)))
     val eigenValues: DenseVector[Double] = s.map(entry => math.sqrt(entry))
     (eigenVectors(::, 0 until dimK), eigenValues(0 until dimK))
-  }
+  }*/
 
   def whiten2(sc: SparkContext,
               alpha0: Double,
@@ -74,29 +74,37 @@ object RandNLA {
     val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK * 2)
     val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
 
-    val M2_a_S_1: CSCMatrix[Double] = documents map {
+    val M2_a_S_1_rdd: RDD[(Int, DenseVector[Double])] = documents flatMap {
       this_document => accumulate_M_mul_S(
         vocabSize, dimK * 2,
         alpha0,
         gaussianRandomMatrix_broadcasted.value,
         this_document._3, this_document._2)
-    } reduce(_ + _)
+    } reduceByKey(_ + _)
+    val M2_a_S_1: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, dimK * 2)
+    M2_a_S_1_rdd.collect.foreach {
+      case (token, v) => M2_a_S_1(token, ::) := v.t
+    }
 
-    val M2_a_S: DenseMatrix[Double] = M2_a_S_1.toDense * para_main
+    val M2_a_S: DenseMatrix[Double] = M2_a_S_1 * para_main
           - (firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)) * para_shift
     gaussianRandomMatrix_broadcasted.destroy
 
     val QR(q: DenseMatrix[Double], _) = qr.reduced(M2_a_S)
     val q_broadcasted = sc.broadcast(q)
     
-    val M2_a_Q_1: CSCMatrix[Double] = documents map {
+    val M2_a_Q_1_rdd: RDD[(Int, DenseVector[Double])] = documents flatMap {
       this_document => accumulate_M_mul_S(
         vocabSize,
         dimK * 2, alpha0,
         q_broadcasted.value,
         this_document._3, this_document._2)
-    } reduce(_ + _)
-    val M2_a_Q = M2_a_Q_1.toDense * para_main
+    } reduceByKey(_ + _)
+    val M2_a_Q_1: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, dimK * 2)
+    M2_a_Q_1_rdd.collect.foreach {
+      case (token, v) => M2_a_Q_1(token, ::) := v.t
+    }
+    val M2_a_Q = M2_a_Q_1 * para_main
           - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift
 
     // Note: eigenvectors * Diag(eigenvalues) = M2_a_Q
@@ -116,16 +124,16 @@ object RandNLA {
   private def accumulate_M_mul_S(dimVocab: Int, dimK: Int, alpha0: Double,
                                  S: breeze.linalg.DenseMatrix[Double],
                                  Wc: breeze.linalg.SparseVector[Double], len: Double)
-        : CSCMatrix[Double] = {
+        : Seq[(Int, DenseVector[Double])] = {
     assert(dimVocab == Wc.length)
     assert(dimVocab == S.rows)
     assert(dimK == S.cols)
     val len_calibrated: Double = math.max(len, 3.0)
 
-    val M2_a: CSCMatrix[Double] = CSCMatrix.zeros[Double](dimVocab, dimK)
+    //val M2_a: CSCMatrix[Double] = CSCMatrix.zeros[Double](dimVocab, dimK)
 
     val norm_length: Double = 1.0 / (len_calibrated * (len_calibrated - 1.0))
-    val data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
+    /*val data_mul_S: DenseVector[Double] = breeze.linalg.DenseVector.zeros[Double](dimK)
 
     var offset = 0
     while (offset < Wc.activeSize) {
@@ -133,9 +141,10 @@ object RandNLA {
       val count: Double = Wc.valueAt(offset)
       data_mul_S += S(token, ::).t.map(x => x * count)
       offset += 1
-    }
+    }*/
+    val data_mul_S: DenseVector[Double] = S.t * Wc
 
-    offset = 0
+    /*offset = 0
     while (offset < Wc.activeSize) {
       val token: Int = Wc.indexAt(offset)
       val count: Double = Wc.valueAt(offset)
@@ -146,8 +155,10 @@ object RandNLA {
 
       offset += 1
     }
-    M2_a
+    M2_a*/
+
+    Wc.activeIterator.toSeq.map { case (token, count) =>
+      (token, (data_mul_S - S(token, ::).t) * count * norm_length)
+    }
   }
-
-
 }
