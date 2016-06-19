@@ -103,17 +103,12 @@ object DataCumulantSketch {
     val broadcasted_sketcher = sc.broadcast(sketcher)
 
     val fft_Ta1: DenseMatrix[Complex] = validDocuments
-      .flatMap {
+      .map {
         case (_, len, vec) => whitenedM3FirstOrderTerms(
           alpha0,
           broadcasted_W.value,
           firstOrderMoments_whitened,
-          vec, len
-        )
-      }
-      .map {
-        case (a: Double, b: Seq[DenseVector[Double]]) => fft_sketch(
-          a, b,
+          vec, len,
           broadcasted_sketcher.value
         )
       }
@@ -144,8 +139,6 @@ object DataCumulantSketch {
       .flatMap {
         case (_, len, vec) => whitenedM3ThirdOrderTerms(
           alpha0,
-          broadcasted_W.value,
-          firstOrderMoments_whitened,
           vec, len
         )
       }
@@ -205,8 +198,9 @@ object DataCumulantSketch {
                                         W: DenseMatrix[Double],
                                         q: DenseVector[Double],
                                         n: SparseVector[Double],
-                                        len: Double)
-  : Seq[(Double, Seq[DenseVector[Double]])] = {
+                                        len: Double,
+                                        sketcher: TensorSketcher[Double, Double])
+  : DenseMatrix[Complex] = {
     // $p=W^T n$, where n is the original word count vector
     val p: DenseVector[Double] = W.t * n
 
@@ -214,13 +208,23 @@ object DataCumulantSketch {
     val coeff2 = 1.0 / (len * (len - 1))
     val h1 = alpha0 / (alpha0 + 2)
 
-    var seqTerms = Seq[(Double, Seq[DenseVector[Double]])](
-      (coeff1, Seq(p, p, p)),
-      (-coeff2 * h1, Seq(p, p, q)),
-      (-coeff2 * h1, Seq(p, q, p)),
-      (-coeff2 * h1, Seq(q, p, p))
-    )
-    seqTerms
+    val fft_sketch_p: Seq[DenseMatrix[Complex]] = (0 until 3)
+      .map { (d) =>
+        val sketch: DenseMatrix[Double] = sketcher.sketch(p, d)
+        fourierTr(sketch(*, ::))
+      }
+    val fft_sketch_q: Seq[DenseMatrix[Complex]] = (0 until 3)
+      .map { (d) =>
+        val sketch: DenseMatrix[Double] = sketcher.sketch(q, d)
+        fourierTr(sketch(*, ::))
+      }
+
+    val s1 = fft_sketch_p.reduce(_ :* _) * Complex(coeff1, 0) 
+    val s2 = (fft_sketch_p(0) :* fft_sketch_p(1) :* fft_sketch_q(2)) * Complex(- coeff2 * h1, 0)
+    val s3 = (fft_sketch_p(0) :* fft_sketch_q(1) :* fft_sketch_p(2)) * Complex(- coeff2 * h1, 0)
+    val s4 = (fft_sketch_q(0) :* fft_sketch_p(1) :* fft_sketch_p(2)) * Complex(- coeff2 * h1, 0)
+
+    s1 + s2 + s3 + s4
   }
 
   private def whitenedM3SecondOrderTerms(alpha0: Double,
@@ -247,13 +251,9 @@ object DataCumulantSketch {
   }
 
   private def whitenedM3ThirdOrderTerms(alpha0: Double,
-                                        W: DenseMatrix[Double],
-                                        q: DenseVector[Double],
                                         n: SparseVector[Double],
                                         len: Double)
   : Seq[(Int, Double)] = {
-    val p: DenseVector[Double] = W.t * n
-
     val coeff1 = 1.0 / (len * (len - 1) * (len - 2))
     val coeff2 = 1.0 / (len * (len - 1))
     val h1 = alpha0 / (alpha0 + 2)
