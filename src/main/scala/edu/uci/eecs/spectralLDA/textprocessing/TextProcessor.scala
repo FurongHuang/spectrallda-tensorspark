@@ -8,17 +8,20 @@ import scala.collection.mutable
 
 
 object TextProcessor {
-  def processDocuments(sc: SparkContext, paths: Seq[String], stopwordFile: String, vocabSize: Int)
+  def processDocuments(sc: SparkContext, path: String, stopwordFile: String, vocabSize: Int)
   : (RDD[(Long, breeze.linalg.SparseVector[Double])], Array[String]) = {
-    val textRDD: RDD[String] = sc.textFile(paths.mkString(","))
-    println("successfully read the raw data." )
+    val textRDD: RDD[(String, String)] = sc.wholeTextFiles(path)
     textRDD.cache()
 
     // Split text into words
     val tokenizer: SimpleTokenizer = new SimpleTokenizer(sc, stopwordFile)
-    val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex().map { case (text, id) =>
-      id -> tokenizer.getWords(text)
-    }
+
+    val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex()
+      .map {
+        case ((filename, text), id) => (text, id)
+      }.map {
+        case (text, id) => id -> tokenizer.getWords(text)
+      }
     tokenized.cache()
 
     // Counts words: RDD[(word, wordCount)]
@@ -66,11 +69,10 @@ object TextProcessor {
     (mydocuments, vocabarray)
   }
 
-  def processDocuments_libsvm(sc: SparkContext, paths: Seq[String], vocabSize: Int)
+  def processDocuments_libsvm(sc: SparkContext, path: String, vocabSize: Int)
   : (RDD[(Long, breeze.linalg.SparseVector[Double])], Array[String]) ={
-    val mypath: String = paths.mkString(",")
-    println(mypath)
-    val mydocuments: RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, mypath)
+    println(path)
+    val mydocuments: RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path)
     val vocabsize = mydocuments.take(1)(0)._2.length
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)
     (mydocuments, vocabarray)

@@ -8,25 +8,26 @@
  import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
  import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
  import breeze.linalg.{DenseMatrix, DenseVector}
+ import breeze.stats.distributions.{Rand, RandBasis}
  import org.apache.spark.rdd.RDD
  import org.apache.spark.SparkContext
+
  import scalaxy.loops._
  import scala.language.postfixOps
  import scala.util.control.Breaks._
+ import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 
 class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
 
-  def run(sc:SparkContext, maxIterations: Int): (DenseMatrix[Double], DenseVector[Double])={
+  def run(sc:SparkContext, maxIterations: Int)
+         (implicit randBasis: RandBasis = Rand)
+     : (DenseMatrix[Double], DenseVector[Double])={
     val T: breeze.linalg.DenseMatrix[Double] = myData.thirdOrderMoments
     val unwhiteningMatrix: DenseMatrix[Double] = myData.unwhiteningMatrix
 
-    val SEED_A: Long = System.currentTimeMillis
-    val SEED_B: Long = System.currentTimeMillis
-    val SEED_C: Long = System.currentTimeMillis
-
-    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_A)
-    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_B)
-    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK, SEED_C)
+    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
 
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
@@ -66,7 +67,7 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
     val whitenedTopicWordMatrix: DenseMatrix[Double] = unwhiteningMatrix * A.copy
     val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
     val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = whitenedTopicWordMatrix * breeze.linalg.diag(lambda)
-    val topicWordMatrix_normed: breeze.linalg.DenseMatrix[Double] = simplexProj_Matrix(topicWordMatrix)
+    val topicWordMatrix_normed: DenseMatrix[Double] = NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix)
     (topicWordMatrix_normed, alpha)
   }
 
@@ -88,48 +89,4 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
     val rhs: DenseVector[Double] = AlgebraUtil.Multip_KhatrioRao(T, C_old, B_old)
     Inverted * rhs
   }
-
-  private def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
-    val M_onSimplex: DenseMatrix[Double] = DenseMatrix.zeros[Double](M.rows, M.cols)
-    for(i <- 0 until M.cols optimized){
-      val thisColumn = M(::,i)
-
-      val tmp1 = simplexProj(thisColumn)
-      val tmp2 = simplexProj(-thisColumn)
-      val err1:Double = breeze.linalg.norm(tmp1 - thisColumn)
-      val err2:Double = breeze.linalg.norm(tmp2 - thisColumn)
-      if(err1 > err2){
-        M_onSimplex(::,i) := tmp2
-      }
-      else{
-        M_onSimplex(::,i) := tmp1
-      }
-    }
-    M_onSimplex
-  }
-
-  private def simplexProj(V: DenseVector[Double]): DenseVector[Double]={
-    // val z:Double = 1.0
-    val len: Int = V.length
-    val U: DenseVector[Double] = DenseVector(V.copy.toArray.sortWith(_ > _))
-    val cums: DenseVector[Double] = DenseVector(AlgebraUtil.Cumsum(U.toArray).map(x => x-1))
-    val Index: DenseVector[Double] = DenseVector((1 to (len + 1)).toArray.map(x => 1.0/x.toDouble))
-    val InterVec: DenseVector[Double] = cums :* Index
-    val TobefindMax: DenseVector[Double] = U - InterVec
-    var maxIndex : Int = 0
-    // find maxIndex
-    breakable{
-      for (i <- 0 until len optimized){
-        if (TobefindMax(len - i - 1) > 0){
-          maxIndex = len - i - 1
-          break()
-        }
-      }
-    }
-    val theta: Double = InterVec(maxIndex)
-    val W: DenseVector[Double] = V.map(x => x - theta)
-    val P_norm: DenseVector[Double] = W.map(x => if (x > 0) x else 0)
-    P_norm
-  }
-
 }
