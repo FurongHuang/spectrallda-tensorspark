@@ -13,7 +13,7 @@ class RandNLATest extends FlatSpec with Matchers {
 
   private val sc: SparkContext = Context.getSparkContext
 
-  "M2 computation" should "be correct" in {
+  "M2 sketching" should "be correct" in {
     val a1 = SparseVector(DenseVector.rand[Double](100).toArray)
     val a2 = SparseVector(DenseVector.rand[Double](100).toArray)
     val a3 = SparseVector(DenseVector.rand[Double](100).toArray)
@@ -77,7 +77,7 @@ class RandNLATest extends FlatSpec with Matchers {
     norm_diff_a should be <= 1e-8
   }
 
-  "Nystrom-like method" should "be approximately correct" in {
+  "Randomised Power Iteration method" should "be approximately correct" in {
     implicit val randBasis: RandBasis =
       new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(234787)))
 

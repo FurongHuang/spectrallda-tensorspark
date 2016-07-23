@@ -2,75 +2,91 @@ package edu.uci.eecs.spectralLDA.utils
 
 import breeze.linalg.eigSym.EigSym
 import breeze.linalg.qr.QR
-import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, cholesky, diag, eigSym, inv, qr, svd}
+import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, cholesky, eigSym, inv, qr, svd}
 import breeze.numerics.{pow, sqrt}
-import breeze.stats.distributions.{Rand, RandBasis}
-import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
+import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 import org.apache.spark.rdd.RDD
 
 
 object RandNLA {
-  def whiten2(sc: SparkContext,
-              alpha0: Double,
-              vocabSize: Int, dimK: Int,
+  /** Randomised Power Iteration Method for SVD of shifted M2
+    *
+    * As the shifted M2 is of size V-by-V, where V is the vocabulary size, which could be
+    * very large, we carry out Randomised Power Iteration Method for computing the SVD of it
+    * following Musco & Musco 2016. The Nystrom decomposition is also implemented but it
+    * gives much worse empirical performance than Musco & Musco 2016.
+    *
+    * Ref:
+    * Musco, Cameron, & Christopher Musco, Randomized Block Krylov Methods for Stronger
+    * and Faster Approximate Singular Value Decomposition, 2016
+    *
+    * @param alpha0     sum of alpha, the Dirichlet prior vector
+    * @param vocabSize  V: the vocabulary size
+    * @param dimK       K: number of topics
+    * @param numDocs    number of documents
+    * @param firstOrderMoments   average of the word count vectors
+    * @param documents  RDD of the documents
+    * @param nIter      number of iterations for the Randomised Power Iteration method,
+    *                   denoted by q in the Algorithm 1 & 2 in the ref paper
+    * @param randBasis  the random seed
+    * @return           V-by-K eigenvector matrix and length-K eigenvalue vector
+    */
+  def whiten2(alpha0: Double,
+              vocabSize: Int,
+              dimK: Int,
               numDocs: Long,
               firstOrderMoments: DenseVector[Double],
-              documents: RDD[(Long, Double, SparseVector[Double])])
+              documents: RDD[(Long, Double, SparseVector[Double])],
+              nIter: Int = 3)
             (implicit randBasis: RandBasis = Rand)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     assert(vocabSize >= dimK)
+    assert(nIter >= 0)
+
     val slackDimK = Math.min(vocabSize - dimK, dimK)
 
-    val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
-    val para_shift: Double = alpha0
+    var q = DenseMatrix.rand[Double](vocabSize, dimK + slackDimK, Gaussian(mu = 0.0, sigma = 1.0))
+    var m2q: DenseMatrix[Double] = null
 
-    // Multiple shifted M2 by a random Gaussian matrix
-    val gaussianRandomMatrix: DenseMatrix[Double] = AlgebraUtil.gaussian(vocabSize, dimK + slackDimK)
-    val gaussianRandomMatrix_broadcasted: Broadcast[breeze.linalg.DenseMatrix[Double]] = sc.broadcast(gaussianRandomMatrix)
-
-    val M2_a_S_1_rdd: RDD[(Int, DenseVector[Double])] = documents flatMap {
-      this_document => accumulate_M_mul_S(
-        gaussianRandomMatrix_broadcasted.value,
-        this_document._3, this_document._2)
-    } reduceByKey(_ + _)
-    val M2_a_S_1: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
-    M2_a_S_1_rdd.collect.foreach {
-      case (token, v) => M2_a_S_1(token, ::) := v.t
+    for (i <- 0 until 2 * (1 + nIter)) {
+      m2q = randomProjectM2(
+        alpha0,
+        vocabSize,
+        dimK,
+        slackDimK,
+        numDocs,
+        firstOrderMoments,
+        documents,
+        q
+      )
+      val QR(nextq, _) = qr.reduced(m2q)
+      q = nextq
     }
 
-    val M2_a_S: DenseMatrix[Double] = M2_a_S_1 * para_main
-          - (firstOrderMoments * (firstOrderMoments.t * gaussianRandomMatrix)) * para_shift
-    gaussianRandomMatrix_broadcasted.destroy
-
-    // Obtain the basis of the action space of shifted M2
-    val QR(q: DenseMatrix[Double], _) = qr.reduced(M2_a_S)
-    val q_broadcasted = sc.broadcast(q)
-
-    // Multiple shifted M2 by the basis of the action space Q
-    val M2_a_Q_1_rdd: RDD[(Int, DenseVector[Double])] = documents flatMap {
-      this_document => accumulate_M_mul_S(
-        q_broadcasted.value,
-        this_document._3, this_document._2)
-    } reduceByKey(_ + _)
-    val M2_a_Q_1: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
-    M2_a_Q_1_rdd.collect.foreach {
-      case (token, v) => M2_a_Q_1(token, ::) := v.t
-    }
-    val M2_a_Q = M2_a_Q_1 * para_main
-          - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift
+    m2q = randomProjectM2(
+      alpha0,
+      vocabSize,
+      dimK,
+      slackDimK,
+      numDocs,
+      firstOrderMoments,
+      documents,
+      q
+    )
 
     // Randomised eigendecomposition of M2
-    val (s: DenseVector[Double], u: DenseMatrix[Double]) = decomp2(M2_a_Q, q)
+    val (s: DenseVector[Double], u: DenseMatrix[Double]) = decomp2(m2q, q)
     val idx = argtopk(s, dimK)
     val u_M2 = u(::, idx).toDenseMatrix
     val s_M2 = s(idx).toDenseVector
 
-    q_broadcasted.destroy
     (u_M2, s_M2)
   }
 
   /** Nystrom method for randomised eigendecomposition of Hermitian matrix
+    *
+    * Empirically it gives much worse performance than the Randomised Power Iteration method
+    * so not used here.
     *
     * Note that
     *
@@ -108,17 +124,17 @@ object RandNLA {
     (pow(s2, 2.0), u2)
   }
 
-  /** A Nystrom-like method for randomised eigendecomposition of Hermitian matrix
+  /** Musco-Musco method for randomised eigendecomposition of Hermitian matrix
     *
     * We could first do the eigendecomposition (AQ)^* AQ=USU^*. If A=HKH^*; apparently
-    * K=S^{1/2}, H^* Q=U^*.
+    * K=S^{1/2}, H=QU.
     *
-    * From the last equation, AQ=HS^{1/2}H^* Q=HS^{1/2}U^*, therefore
-    *
-    *    H=(AQ)US^{-1/2}.
-    *
-    * Empirically for the Spectral LDA model, using the decomposition algorithm often
+    * Empirically for the Spectral LDA model, this decomposition algorithm often
     * gives better final results than the Nystrom method.
+    *
+    * Ref:
+    * Musco, Cameron, & Christopher Musco, Randomized Block Krylov Methods for Stronger
+    * and Faster Approximate Singular Value Decomposition, 2016
     *
     * @param aq product of the original n-by-n matrix A and a n-by-k test matrix
     * @param q  the n-by-k test matrix
@@ -131,12 +147,43 @@ object RandNLA {
     val EigSym(s: DenseVector[Double], u: DenseMatrix[Double]) = eigSym((w + w.t) / 2.0)
 
     val sqrt_s = sqrt(s)
-    val inverse_sqrt_s = sqrt_s map { 1.0 / _ }
 
-    val h: DenseMatrix[Double] = (aq * u) * diag(inverse_sqrt_s)
+    val h = q * u
 
     (sqrt_s, h)
   }
+
+  /** Given a test matrix q returns the product of shifted M2 and q */
+  private[utils] def randomProjectM2(alpha0: Double,
+                                     vocabSize: Int,
+                                     dimK: Int,
+                                     slackDimK: Int,
+                                     numDocs: Long,
+                                     firstOrderMoments: DenseVector[Double],
+                                     documents: RDD[(Long, Double, SparseVector[Double])],
+                                     q: DenseMatrix[Double]
+                                    ): DenseMatrix[Double] = {
+    val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
+    val para_shift: Double = alpha0
+
+    val unshiftedM2 = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
+    documents
+      .flatMap {
+        doc => accumulate_M_mul_S(
+          q, doc._3, doc._2
+        )
+      }
+      .reduceByKey(_ + _)
+      .collect
+      .foreach {
+        case (token, v) => unshiftedM2(token, ::) := v.t
+      }
+
+    val m2 = unshiftedM2 * para_main - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift
+
+    m2
+  }
+
 
   /** Return the contribution of a document to M2, multiplied by the test matrix
     *
