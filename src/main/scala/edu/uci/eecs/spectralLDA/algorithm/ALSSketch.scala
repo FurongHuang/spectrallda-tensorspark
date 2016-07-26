@@ -8,7 +8,7 @@ import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
 import breeze.linalg.{*, DenseMatrix, DenseVector}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
-import breeze.stats.distributions.{Rand, RandBasis}
+import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
@@ -22,9 +22,10 @@ class ALSSketch(dimK: Int,
 
   def run(implicit randBasis: RandBasis = Rand)
         : (DenseMatrix[Double], DenseVector[Double]) = {
-    var A: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
-    var B: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
-    var C: DenseMatrix[Double] = AlgebraUtil.gaussian(dimK, dimK)
+    val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
+    var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    var C: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
 
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)

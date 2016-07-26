@@ -15,21 +15,13 @@ import scala.language.postfixOps
 object AlgebraUtil {
   private val TOLERANCE: Double = 1.0e-9
 
-  def gaussian(rows: Int, cols: Int)
-              (implicit randBasis: RandBasis = Rand): DenseMatrix[Double] = {
-    val gaussianMatrix: DenseMatrix[Double] = new DenseMatrix(rows, cols,
-      Gaussian(0, 1).sample(rows * cols).toArray)
-    matrixNormalization(gaussianMatrix)
-  }
-
   def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
     val ctc: DenseMatrix[Double] = c.t * c
     val btb: DenseMatrix[Double] = b.t * b
     val to_be_inverted: DenseMatrix[Double] = ctc :* btb
     breeze.linalg.pinv(to_be_inverted)
   }
-
-
+  
   def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
     val A:DenseMatrix[Double] = B.copy
 
