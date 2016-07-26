@@ -21,23 +21,6 @@ object AlgebraUtil {
     val to_be_inverted: DenseMatrix[Double] = ctc :* btb
     breeze.linalg.pinv(to_be_inverted)
   }
-  
-  def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    val A:DenseMatrix[Double] = B.copy
-
-    for (j <- 0 until A.cols optimized) {
-      for (i <- 0 until j optimized) {
-        val dotij = A(::, j) dot A(::, i)
-        A(::, j) :-= (A(::, i) :* dotij)
-
-      }
-      val normsq_sqrt: Double = Math.sqrt(A(::, j) dot A(::, j))
-      val scale: Double = if (normsq_sqrt > TOLERANCE) 1.0 / normsq_sqrt else 1e-12
-      A(::, j) :*= scale
-    }
-    A
-  }
-
 
   def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
     val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
