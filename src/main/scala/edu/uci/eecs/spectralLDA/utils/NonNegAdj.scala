@@ -1,6 +1,7 @@
 package edu.uci.eecs.spectralLDA.utils
 
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, max}
+
 import scala.util.control.Breaks._
 import scalaxy.loops._
 import scala.language.postfixOps
@@ -11,21 +12,27 @@ object NonNegativeAdjustment {
     for(i <- 0 until M.cols optimized){
       val thisColumn = M(::,i)
 
-      val tmp1 = simplexProj(thisColumn)
-      val tmp2 = simplexProj(-thisColumn)
-      val err1:Double = breeze.linalg.norm(tmp1 - thisColumn)
-      val err2:Double = breeze.linalg.norm(tmp2 - thisColumn)
-      if(err1 > err2){
-        M_onSimplex(::,i) := tmp2
-      }
-      else{
-        M_onSimplex(::,i) := tmp1
-      }
+      val (tmp1, theta1) = simplexProj(thisColumn)
+      val (tmp2, theta2) = simplexProj(-thisColumn)
+
+      M_onSimplex(::, i) := (if (theta1 > theta2) tmp1 else tmp2)
     }
+
     M_onSimplex
   }
 
-  def simplexProj(V: DenseVector[Double]): DenseVector[Double]={
+  /** Projection of a vector onto a simplex
+    *
+    * Given a length-n vector V, find a vector W=(w_i)_{1\le i\le n} in the simplex that
+    * \sum_{i=1}^n w_i=1, w_i>0 \forall i, by minimising the Euclidean distance between V and W.
+    *
+    * Ref:
+    * Duchi, John, Efficient Projections onto the l1-Ball for Learning in High Dimensions, 2008
+    *
+    * @param V  The input vector
+    * @return   Projected vector and the shift
+    */
+  def simplexProj(V: DenseVector[Double]): (DenseVector[Double], Double) = {
     // val z:Double = 1.0
     val len: Int = V.length
     val U: DenseVector[Double] = DenseVector(V.copy.toArray.sortWith(_ > _))
@@ -44,8 +51,7 @@ object NonNegativeAdjustment {
       }
     }
     val theta: Double = InterVec(maxIndex)
-    val W: DenseVector[Double] = V.map(x => x - theta)
-    val P_norm: DenseVector[Double] = W.map(x => if (x > 0) x else 0)
-    P_norm
+    val P_norm: DenseVector[Double] = max(V - theta, 0.0)
+    (P_norm, theta)
   }
 }

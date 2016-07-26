@@ -11,23 +11,20 @@ object TextProcessor {
   def processDocuments(sc: SparkContext, path: String, stopwordFile: String, vocabSize: Int)
   : (RDD[(Long, breeze.linalg.SparseVector[Double])], Array[String]) = {
     val textRDD: RDD[(String, String)] = sc.wholeTextFiles(path)
-    textRDD.cache()
 
     // Split text into words
     val tokenizer: SimpleTokenizer = new SimpleTokenizer(sc, stopwordFile)
 
     val tokenized: RDD[(Long, IndexedSeq[String])] = textRDD.zipWithIndex()
       .map {
-        case ((filename, text), id) => (text, id)
-      }.map {
-        case (text, id) => id -> tokenizer.getWords(text)
+        case ((filename, text), id) => id -> tokenizer.getWords(text)
       }
-    tokenized.cache()
 
     // Counts words: RDD[(word, wordCount)]
     val wordCounts: RDD[(String, Long)] = tokenized.flatMap{ case (_, tokens) => tokens.map(_ -> 1L) }.reduceByKey(_ + _)
     wordCounts.cache()
     val fullVocabSize: Long = wordCounts.count()
+    println(s"Full vocabulary size $fullVocabSize")
 
     // Select vocab
     val (vocab: Map[String, Int], selectedTokenCount: Long) = {
@@ -54,9 +51,6 @@ object TextProcessor {
       }
       val indices: Array[Int] = wc.keys.toArray.sorted
       val values: Array[Double] = indices.map(i => wc(i).toDouble)
-      val len: Double = values.sum
-      // values = values.map(x => x/len)
-      // val sb: Vector = Vectors.sparse(vocab.size, indices, values)
       val sb: breeze.linalg.SparseVector[Double] = {
         new breeze.linalg.SparseVector[Double](indices, values, vocab.size)
       }

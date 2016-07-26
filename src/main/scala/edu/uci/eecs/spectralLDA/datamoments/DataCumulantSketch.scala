@@ -72,8 +72,14 @@ object DataCumulantSketch {
 
     println("Start calculating second order moments...")
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) = if (randomisedSVD) {
-      RandNLA.whiten2(sc, alpha0,
-        dimVocab, dimK, numDocs, firstOrderMoments, validDocuments)
+      RandNLA.whiten2(
+        alpha0,
+        dimVocab,
+        dimK,
+        numDocs,
+        firstOrderMoments,
+        validDocuments
+      )
     }
     else {
       val E_x1_x2: DenseMatrix[Double] = validDocuments

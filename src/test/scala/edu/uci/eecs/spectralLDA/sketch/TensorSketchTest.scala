@@ -1,11 +1,12 @@
 package edu.uci.eecs.spectralLDA.sketch
 
 import breeze.linalg._
-import breeze.stats.distributions.Uniform
+import breeze.stats.distributions.{RandBasis, ThreadLocalRandomGenerator, Uniform}
 import breeze.signal.fourierTr
 import breeze.math.Complex
 import breeze.numerics.abs
 import edu.uci.eecs.spectralLDA.utils.TensorOps
+import org.apache.commons.math3.random.MersenneTwister
 import org.scalatest._
 import org.scalatest.Matchers._
 
@@ -56,6 +57,9 @@ class TensorSketchTest extends FlatSpec with Matchers {
 
   "The inner product of two 3d tensors' sketches" should
     "be close to the tensors' inner product" in {
+    implicit val randBasis: RandBasis =
+      new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(987547)))
+
     val n: Seq[Int] = Seq(10, 10, 10)
     val b = 32
     val B = 40
