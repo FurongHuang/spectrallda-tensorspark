@@ -7,6 +7,17 @@ import breeze.storage.Zero
 
 /** Generate independent hash functions h and sign functions \xi */
 object HashFunctions {
+  /** Generate independent hash functions
+    *
+    * @param n   Length-q Seq (d_1, ..., d_q), q is the order of the tensor, d_i the size along dimension i
+    * @param b   Length of each hash
+    * @param B   Number of hash families
+    * @param kWiseIndependent k-wise independent hash functions, 2 for current implementation
+    * @param randBasis    Random seed
+    * @tparam W  The space of hashed values, Double or Complex
+    * @return    B-by-q-by-d_i tensor for the sign functions \xi, and
+    *            B-by-q-by-d_i tensor for the hash functions h
+    */
   def apply[@specialized(Double) W : Numeric : Semiring : Zero]
                 (n: Seq[Int],
                  b: Int,
@@ -16,6 +27,9 @@ object HashFunctions {
                 (implicit randBasis: RandBasis = Rand)
       : (Tensor[(Int, Int, Int), W], Tensor[(Int, Int, Int), Int]) = {
     // The current version only implemented for 2-wise independent hash functions
+    for (d <- n) assert(d > 0)
+    assert(b > 0)
+    assert(B > 0)
     assert(kWiseIndependent == 2)
 
     val uniform = new Uniform(0, 1)
