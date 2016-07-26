@@ -8,13 +8,12 @@
  import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
  import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
  import breeze.linalg.{DenseMatrix, DenseVector}
- import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
+ import breeze.stats.distributions.{Rand, RandBasis, Gaussian}
  import org.apache.spark.rdd.RDD
  import org.apache.spark.SparkContext
 
  import scalaxy.loops._
  import scala.language.postfixOps
- import scala.util.control.Breaks._
  import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 
 class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
