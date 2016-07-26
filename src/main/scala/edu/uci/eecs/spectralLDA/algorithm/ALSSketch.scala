@@ -8,7 +8,7 @@ import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
 import breeze.linalg.{*, DenseMatrix, DenseVector}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
-import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
+import breeze.stats.distributions.{Rand, RandBasis, Gaussian}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
@@ -17,7 +17,7 @@ import scala.language.postfixOps
 class ALSSketch(dimK: Int,
                 fft_sketch_T: DenseMatrix[Complex],
                 sketcher: TensorSketcher[Double, Double],
-                maxIterations: Int = 1000
+                maxIterations: Int = 200
                 ) extends Serializable {
 
   def run(implicit randBasis: RandBasis = Rand)

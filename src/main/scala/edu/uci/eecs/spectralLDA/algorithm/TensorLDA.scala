@@ -12,7 +12,7 @@ import org.apache.spark.rdd.RDD
 
 class TensorLDA(dimK: Int,
                 alpha0: Double,
-                maxIterations: Int = 1000,
+                maxIterations: Int = 200,
                 tolerance: Double = 1e-9)
                 extends Serializable {
 

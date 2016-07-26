@@ -13,12 +13,13 @@ import org.apache.spark.rdd.RDD
 
 class TensorLDASketch(dimK: Int,
                       alpha0: Double,
-                      maxIterations: Int = 1000,
+                      maxIterations: Int = 200,
                       sketcher: TensorSketcher[Double, Double],
                       randomisedSVD: Boolean = true,
                       nonNegativeDocumentConcentration: Boolean = true)
                      (implicit tolerance: Double = 1e-9)
   extends Serializable {
+  assert(sketcher.n forall { _ == dimK }, s"The sketcher must work on symmetric tensors of shape ($dimK, ..., $dimK).")
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
          (implicit randBasis: RandBasis = Rand)
