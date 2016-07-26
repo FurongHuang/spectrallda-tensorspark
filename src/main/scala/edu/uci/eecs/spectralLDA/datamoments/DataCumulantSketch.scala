@@ -101,6 +101,9 @@ object DataCumulantSketch {
     val W: DenseMatrix[Double] = eigenVectors * diag(eigenValues map { x => 1 / (sqrt(x) + tolerance) })
     println("Finished whitening data.")
 
+    // We computing separately the first order, second order, 3rd order terms in Eq (25) (26)
+    // in [Wang2015]. For the 2nd order, 3rd order terms, We'd achieve maximum performance with
+    // reduceByKey() of w_i, 1\le i\le V, the rows of the whitening matrix W.
     println("Start calculating third order moments...")
 
     val firstOrderMoments_whitened = W.t * firstOrderMoments
@@ -108,6 +111,8 @@ object DataCumulantSketch {
     val broadcasted_W = sc.broadcast(W)
     val broadcasted_sketcher = sc.broadcast(sketcher)
 
+    // First order terms: p^{\otimes 3}, p\otimes p\otimes q, p\otimes q\otimes p,
+    // q\otimes p\otimes p
     val fft_Ta1: DenseMatrix[Complex] = validDocuments
       .map {
         case (_, len, vec) => whitenedM3FirstOrderTerms(
@@ -121,6 +126,8 @@ object DataCumulantSketch {
       .reduce(_ + _)
       .map(_ / numDocs.toDouble)
 
+    // Second order terms: all terms as w_i\otimes w_i\otimes p, w_i\otimes w_i\otimes q,
+    // 1\le i\le V and their permutations
     val fft_Ta2: DenseMatrix[Complex] = validDocuments
       .flatMap {
         case (_, len, vec) => whitenedM3SecondOrderTerms(
@@ -141,6 +148,7 @@ object DataCumulantSketch {
       .reduce(_ + _)
       .map(_ / numDocs.toDouble)
 
+    // Third order terms: all terms w_i^{\otimes 3}, 1\le i\le V
     val fft_Ta3: DenseMatrix[Complex] = validDocuments
       .flatMap {
         case (_, len, vec) => whitenedM3ThirdOrderTerms(
@@ -179,27 +187,6 @@ object DataCumulantSketch {
     new DataCumulantSketch(fft_sketch_whitened_M3 * Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0), unwhiteningMatrix)
   }
 
-
-  /** Compute the terms in the contribution of the document to the FFT of the sketch of whitened M3
-    *
-    * @param alpha0 Topic concentration
-    * @param W      Whitening matrix $W\in\mathsf{R^{V\times k}$, where $V$ is the vocabulary size,
-    *               $k$ is the reduced dimension, $k<V$
-    * @param q      Whitened M1, i.e. $W^T M1$
-    * @param n      Word count vector for the current document
-    * @param len    Total word counts for the current document
-    * @return Sequence of the terms in the contribution of the document to the FFT of the sketch of whitened M3
-    *         i.e. $E[x_1\otimes x_2\otimes x_3](W^T,W^T,W^T)-
-    *         \frac{\alpha_0}{\alpha_0+2}\left(E[x_1\otimes x_2\otimes M1]
-    *         +E[x_1\otimes M1\otimes x_2]
-    *         +E[M1\otimes x_1\otimes x_2]\right)(W^T,W^T,W^T)$
-    *         Refer to Eq (22) in [Wang2015]
-    *
-    *         REFERENCES
-    *         [Wang2015] Wang Y et al, Fast and Guaranteed Tensor Decomposition via Sketching, 2015,
-    *         http://arxiv.org/abs/1506.04448
-    *
-    */
   private def whitenedM3FirstOrderTerms(alpha0: Double,
                                         W: DenseMatrix[Double],
                                         q: DenseVector[Double],
