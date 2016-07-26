@@ -101,7 +101,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
     abs(delta) should be <= 0.05
   }
 
-  "Sketch of rank-1 3d tensor" should "be the convolution of the sketches along each dimension" in {
+  "Sketch of rank-1 3d tensor" should "be the convolution of the 3 sketches of vector along each dimension" in {
     val n = Seq(3, 3, 3)
     val sketcher = TensorSketcher[Double, Double](
       n = n,
@@ -131,7 +131,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
   }
 
   "Sketch of whitened rank-1 3d tensor" should
-    "be the convolution of sketches of whitened vectors along each dimension" in {
+    "be the convolution of the 3 sketches of whitened vector along each dimension" in {
     val v: Seq[DenseVector[Double]] = Seq(
       DenseVector.rand(50),
       DenseVector.rand(50),
@@ -170,7 +170,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
     TensorOps.matrixNorm(fft_sketch_whitened_t - prod_fft_sketch_whitened_v) should be <= 1e-6
   }
 
-  "Sketch of whitened diagonal matrix" should "be the expected sum of sketches" in {
+  "Sketch of sum of rank-1 2d tensors (W\\diag(v)W^*)" should "be the sum of expected sketches" in {
     val v: DenseVector[Double] = DenseVector.rand(50)
     val t: DenseMatrix[Double] = diag(v)
 
