@@ -42,6 +42,9 @@ class TensorSketcher[@specialized(Double) V : Numeric : ClassTag : Semiring : Ze
          val xi: Tensor[(Int, Int, Int), W],
          val h: Tensor[(Int, Int, Int), Int])
   extends TensorSketcherBase[V, W] with Serializable {
+  assert(n forall { _ > 0 }, "Each dimension size must be positive.")
+  assert(b > 0, "The hash length b must be positive.")
+  assert(B > 0, "The number of hash families B must be positive.")
 
   // order of the tensor
   val p: Int = n.size
@@ -163,8 +166,8 @@ object TensorSketcher {
   def apply[@specialized(Double) V : Numeric : ClassTag : Semiring : Zero,
             @specialized(Double) W : Numeric : ClassTag : Semiring : Zero]
           (n: Seq[Int],
-           b: Int = Math.pow(2, 12).toInt,
-           B: Int = 1,
+           b: Int = Math.pow(2, 8).toInt,
+           B: Int = 50,
            kWiseIndependent: Int = 2)
           (implicit randBasis: RandBasis = Rand)
           : TensorSketcher[V, W] =  {

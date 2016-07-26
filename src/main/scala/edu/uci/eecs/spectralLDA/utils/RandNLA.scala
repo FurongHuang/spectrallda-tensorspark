@@ -48,7 +48,7 @@ object RandNLA {
     var q = DenseMatrix.rand[Double](vocabSize, dimK + slackDimK, Gaussian(mu = 0.0, sigma = 1.0))
     var m2q: DenseMatrix[Double] = null
 
-    for (i <- 0 until 2 * (1 + nIter)) {
+    for (i <- 0 until 2 * nIter + 1) {
       m2q = randomProjectM2(
         alpha0,
         vocabSize,

@@ -1,7 +1,7 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
 import breeze.linalg._
-import breeze.stats.distributions.{Dirichlet, Multinomial}
+import breeze.stats.distributions.{Dirichlet, Multinomial, RandBasis, ThreadLocalRandomGenerator}
 import breeze.signal.fourierTr
 import breeze.math.Complex
 import breeze.numerics.abs
@@ -11,12 +11,16 @@ import org.scalatest.Matchers._
 import org.apache.spark.SparkContext
 import edu.uci.eecs.spectralLDA.utils.TensorOps
 import edu.uci.eecs.spectralLDA.testharness.Context
+import org.apache.commons.math3.random.MersenneTwister
 
 class ALSSketchTest extends FlatSpec with Matchers {
 
   private val sc: SparkContext = Context.getSparkContext
 
   "T(C katri-rao dot B) via sketching" should "be close to the exact result" in {
+    implicit val randBasis: RandBasis =
+      new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(23476541L)))
+
     val k: Int = 20
     val p: DenseVector[Double] = DenseVector.rand(k)
     val t: Tensor[Seq[Int], Double] = Counter()
@@ -26,7 +30,7 @@ class ALSSketchTest extends FlatSpec with Matchers {
 
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(k, k, k),
-      B = 100,
+      B = 50,
       b = Math.pow(2, 8).toInt
     )
 

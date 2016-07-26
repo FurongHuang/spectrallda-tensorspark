@@ -15,37 +15,12 @@ import scala.language.postfixOps
 object AlgebraUtil {
   private val TOLERANCE: Double = 1.0e-9
 
-  def gaussian(rows: Int, cols: Int)
-              (implicit randBasis: RandBasis = Rand): DenseMatrix[Double] = {
-    val gaussianMatrix: DenseMatrix[Double] = new DenseMatrix(rows, cols,
-      Gaussian(0, 1).sample(rows * cols).toArray)
-    matrixNormalization(gaussianMatrix)
-  }
-
   def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
     val ctc: DenseMatrix[Double] = c.t * c
     val btb: DenseMatrix[Double] = b.t * b
     val to_be_inverted: DenseMatrix[Double] = ctc :* btb
     breeze.linalg.pinv(to_be_inverted)
   }
-
-
-  def orthogonalizeMatCols(B: DenseMatrix[Double]): DenseMatrix[Double] = {
-    val A:DenseMatrix[Double] = B.copy
-
-    for (j <- 0 until A.cols optimized) {
-      for (i <- 0 until j optimized) {
-        val dotij = A(::, j) dot A(::, i)
-        A(::, j) :-= (A(::, i) :* dotij)
-
-      }
-      val normsq_sqrt: Double = Math.sqrt(A(::, j) dot A(::, j))
-      val scale: Double = if (normsq_sqrt > TOLERANCE) 1.0 / normsq_sqrt else 1e-12
-      A(::, j) :*= scale
-    }
-    A
-  }
-
 
   def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
     val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
@@ -119,10 +94,7 @@ object AlgebraUtil {
     delta < TOLERANCE
   }
 
-
   def Cumsum(xs: Array[Double]): Array[Double] = {
-    // def apply(xs : Seq[Int]) : Seq[Int] =
-    //   xs.scanLeft(0)(_ + _).tail
     xs.scanLeft(0.0)(_ + _).tail
   }
 
