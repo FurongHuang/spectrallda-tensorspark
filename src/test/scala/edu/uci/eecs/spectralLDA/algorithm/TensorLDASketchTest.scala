@@ -40,25 +40,25 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
 
   "Simulated LDA" should "be recovered" in {
     val alpha: DenseVector[Double] = DenseVector[Double](20.0, 10.0, 5.0)
-    val allTokenDistributions: DenseMatrix[Double] = new DenseMatrix[Double](5, 3,
-      Array[Double](0.6, 0.1, 0.1, 0.1, 0.1,
-        0.1, 0.1, 0.6, 0.1, 0.1,
-        0.1, 0.1, 0.1, 0.1, 0.6))
+    val allTokenDistributions: DenseMatrix[Double] = new DenseMatrix[Double](6, 3,
+      Array[Double](0.4, 0.4, 0.05, 0.05, 0.05, 0.05,
+        0.05, 0.05, 0.4, 0.4, 0.05, 0.05,
+        0.05, 0.05, 0.05, 0.05, 0.4, 0.4))
 
     implicit val randBasis: RandBasis =
-      new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(347529)))
+      new RandBasis(new ThreadLocalRandomGenerator(new MersenneTwister(57175437L)))
 
     val documents = simulateLDAData(
       alpha,
       allTokenDistributions,
-      numDocuments = 2000,
-      numTokensPerDocument = 1000
+      numDocuments = 5000,
+      numTokensPerDocument = 100
     )
     val documentsRDD = sc.parallelize(documents)
 
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(3, 3, 3),
-      B = 100,
+      B = 50,
       b = Math.pow(2, 8).toInt
     )
 
@@ -67,7 +67,7 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       alpha0 = sum(alpha),
       sketcher = sketcher,
       maxIterations = 200,
-      nonNegativeDocumentConcentration = false,
+      nonNegativeDocumentConcentration = true,
       randomisedSVD = false
     )
 
@@ -85,16 +85,19 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     }
     val sorted_alpha = fitted_alpha(idx).toDenseVector
 
-    info(s"Expecting alpha: $alpha")
-    info(s"Obtained alpha: $sorted_alpha")
-    info(s"Expecting beta:\n$allTokenDistributions")
-    info(s"Obtained beta:\n$sorted_beta")
-
     val diff_beta: DenseMatrix[Double] = sorted_beta - allTokenDistributions
     val diff_alpha: DenseVector[Double] = sorted_alpha - alpha
 
     val norm_diff_beta = norm(norm(diff_beta(::, *)).toDenseVector)
     val norm_diff_alpha = norm(diff_alpha)
+
+    info(s"Expecting alpha: $alpha")
+    info(s"Obtained alpha: $sorted_alpha")
+    info(s"Norm of difference alpha: $norm_diff_alpha")
+
+    info(s"Expecting beta:\n$allTokenDistributions")
+    info(s"Obtained beta:\n$sorted_beta")
+    info(s"Norm of difference beta: $norm_diff_beta")
 
     norm_diff_beta should be <= 0.2
     norm_diff_alpha should be <= 4.0
@@ -118,15 +121,15 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     val documents = simulateLDAData(
       alpha,
       allTokenDistributions,
-      numDocuments = 10000,
-      numTokensPerDocument = 1000
+      numDocuments = 5000,
+      numTokensPerDocument = 500
     )
     val documentsRDD = sc.parallelize(documents)
 
     val dimK = 3
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(dimK, dimK, dimK),
-      B = 100,
+      B = 50,
       b = Math.pow(2, 8).toInt
     )
 
@@ -150,22 +153,21 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
     val expected_alpha = alpha(0 until dimK)
     val expected_beta = normalisedAllTokenDistributions(::, 0 until dimK)
 
-    info(s"Expecting alpha: $expected_alpha")
-    info(s"Obtained alpha: $sorted_alpha")
-
-    info(s"Expecting beta:\n$expected_beta")
-    info(s"Obtained beta:\n$sorted_beta")
-
     val diff_beta: DenseMatrix[Double] = sorted_beta - expected_beta
     val diff_alpha: DenseVector[Double] = sorted_alpha - expected_alpha
 
     val norm_diff_beta = norm(norm(diff_beta(::, *)).toDenseVector)
     val norm_diff_alpha = norm(diff_alpha)
 
-    // norm_diff_beta = 0.011160971819766542
-    // norm_diff_alpha = 2.11096081669476
+    info(s"Expecting alpha: $expected_alpha")
+    info(s"Obtained alpha: $sorted_alpha")
+    info(s"Norm of difference alpha: $norm_diff_alpha")
 
-    norm_diff_beta should be <= 0.015
-    norm_diff_alpha should be <= 2.5
+    info(s"Expecting beta:\n$expected_beta")
+    info(s"Obtained beta:\n$sorted_beta")
+    info(s"Norm of difference beta: $norm_diff_beta")
+
+    norm_diff_beta should be <= 0.025
+    norm_diff_alpha should be <= 3.5
   }
 }
