@@ -94,10 +94,7 @@ object AlgebraUtil {
     delta < TOLERANCE
   }
 
-
   def Cumsum(xs: Array[Double]): Array[Double] = {
-    // def apply(xs : Seq[Int]) : Seq[Int] =
-    //   xs.scanLeft(0)(_ + _).tail
     xs.scanLeft(0.0)(_ + _).tail
   }
 
