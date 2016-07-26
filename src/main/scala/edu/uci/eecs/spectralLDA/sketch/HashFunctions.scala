@@ -20,17 +20,17 @@ object HashFunctions {
     */
   def apply[@specialized(Double) W : Numeric : Semiring : Zero]
                 (n: Seq[Int],
-                 b: Int,
-                 B: Int,
+                 b: Int = Math.pow(2, 8).toInt,
+                 B: Int = 50,
                  kWiseIndependent: Int = 2
                 )
                 (implicit randBasis: RandBasis = Rand)
       : (Tensor[(Int, Int, Int), W], Tensor[(Int, Int, Int), Int]) = {
     // The current version only implemented for 2-wise independent hash functions
-    for (d <- n) assert(d > 0)
-    assert(b > 0)
-    assert(B > 0)
-    assert(kWiseIndependent == 2)
+    assert(n forall { _ > 0 }, "Each dimension size must be positive.")
+    assert(b > 0, "The hash length b must be positive.")
+    assert(B > 0, "The number of hash families B must be positive.")
+    assert(kWiseIndependent == 2, "Currently only 2-wise independent hash functions are implemented.")
 
     val uniform = new Uniform(0, 1)
     val ev = implicitly[Numeric[W]]
