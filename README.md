@@ -82,4 +82,4 @@ Now if we run the above experiments again, any "WARN BLAS" or "WARN LAPACK" mess
 ## Who do I talk to?
 
 * Repo owner or admin: Furong Huang 
-* Contact: furongh@uci.edu
+* Contact: furongh.uci@gmail.com
