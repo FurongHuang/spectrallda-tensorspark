@@ -20,63 +20,89 @@ import java.io._
 object SpectralLDA {
   private case class Params(
                              input: Seq[String] = Seq.empty,//use this for customized input
-                             libsvm: Int = 1, //Note: for real texts set, set parameter "libsvm"=0 (default), use real text (per article per row)
-                             k: Int = 20,
-                             maxIterations: Int = 1000,
+                             inputType: String = "obj", // "libsvm", "text" or "obj"
+                             k: Int = 1,
+                             topicConcentration: Double = 5.0,
+                             maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
-                             topicConcentration: Double = 0.001,
                              vocabSize: Int = -1,
-                             outputDir: String = "",
-                             stopWordFile: String ="src/main/resources/Data/datasets/StopWords_common.txt"
+                             outputDir: String = ".",
+                             stopWordFile: String = "src/main/resources/Data/datasets/StopWords_common.txt"
                           )
 
   def main(args: Array[String]): Unit = {
     val defaultParams = Params()
 
     val parser: OptionParser[Params] = new OptionParser[Params]("LDA Example") {
-      head("Tensor Factorization Step 1: reading corpus from plain text data.")
-      opt[Int]("k")
-        .text(s"number of topics. default: ${defaultParams.k}")
+      head("Spectral LDA Factorization")
+
+      opt[Int]('k', "k").required()
+        .text("number of topics")
         .action((x, c) => c.copy(k = x))
-      opt[Int]("maxIterations")
+        .validate(x =>
+          if (x > 0) success
+          else failure("k must be positive.")
+        )
+      opt[Double]("topicConcentration").abbr("alpha0").required()
+        .text("the sum of the prior vector for topic distribution e.g. 5k or 10k. The higher it is; the less variation in the drawn topic distribution vector")
+        .action((x, c) => c.copy(topicConcentration = x))
+        .validate(x =>
+          if (x > 0.0) success
+          else failure("topicConcentration must be positive.")
+        )
+
+      opt[Int]("maxIterations").abbr("max-iter")
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
-      opt[Double]("tolerance")
-        .text(s"tolerance. default: ${defaultParams.tolerance}".stripMargin('|'))
+        .validate(x =>
+          if (x > 0) success
+          else failure("maxIterations must be positive.")
+        )
+      opt[Double]("tolerance").abbr("tol")
+        .text(s"tolerance. default: ${defaultParams.tolerance}")
         .action((x, c) => c.copy(tolerance = x))
-      opt[Double]("topicConcentration")
-        .text(s"""amount of term (word) smoothing to use (> 1.0) (-1=auto).
-                 |  default: ${defaultParams.topicConcentration}""".stripMargin('|'))
-        .action((x, c) => c.copy(topicConcentration = x))
-      opt[Int]("vocabSize")
-        .text(s"""number of distinct word types to use, chosen by frequency. (-1=all)
-                 |  default: ${defaultParams.vocabSize}""".stripMargin('|'))
+        .validate(x =>
+          if (x > 0.0) success
+          else failure("tolerance must be positive.")
+        )
+
+      opt[Int]('V', "vocabSize")
+        .text(s"number of distinct word types to use, ordered by frequency. default: ${defaultParams.vocabSize}")
         .action((x, c) => c.copy(vocabSize = x))
-      opt[Int]("libsvm")
-        .text(s"""whether to use libsvm data or real text (0=real text, 1=libsvm data)
-                 |  default:${defaultParams.libsvm}""".stripMargin('|'))
-        .action((x, c) => c.copy(libsvm = x))
-      opt[String]("outputDir")
-        .text(s"""output write path.
-                 | default: ${defaultParams.outputDir}""".stripMargin('|'))
+        .validate(x =>
+          if (x == -1 || x > 0) success
+          else failure("vocabSize must be -1 for all or positive."))
+
+      opt[String]('t', "inputType")
+        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
+        .action((x, c) => c.copy(inputType = x))
+        .validate(x =>
+          if (x == "obj" || x == "libsvm" || x == "text") success
+          else failure("""inputType must be "obj", "libsvm" or "text".""")
+        )
+
+      opt[String]('o', "outputDir").valueName("<dir>")
+        .text(s"output write path. default: ${defaultParams.outputDir}")
         .action((x, c) => c.copy(outputDir = x))
       opt[String]("stopWordFile")
-        .text(s"""filepath for a list of stopwords. Note: This must fit on a single machine.
-                 |  default: ${defaultParams.stopWordFile}""".stripMargin('|'))
+        .text(s"filepath for a list of stopwords. default: ${defaultParams.stopWordFile}")
         .action((x, c) => c.copy(stopWordFile = x))
+
+      help("help").text("prints this usage text")
+
       arg[String]("<input>...")
-        .text("""input paths (directories) to plain text corpora.
-                |  Each text file line should hold 1 document.""".stripMargin('|'))
+        .text("paths of input files")
         .unbounded()
         .required()
         .action((x, c) => c.copy(input = c.input :+ x))
     }
 
-    parser.parse(args, defaultParams).map { params =>
-      run(params)
-    }.orElse {
-      parser.showUsageAsError
-      sys.exit(1)
+    parser.parse(args, defaultParams) match {
+      case Some(params) =>
+        run(params)
+      case None =>
+        parser.showUsageAsError
+        sys.exit(1)
     }
   }
 
@@ -84,7 +110,7 @@ object SpectralLDA {
   private def run(params: Params): (RDD[(Long, SparseVector[Double])], Array[String], DenseMatrix[Double], DenseVector[Double]) = {
 
     Logger.getRootLogger.setLevel(Level.WARN)
-    if (params.libsvm == 1) {
+    if (params.inputType == "libsvm") {
       println("Input data in libsvm format.")
     }
     else {
@@ -99,11 +125,13 @@ object SpectralLDA {
     println("Generated the SparkConetxt")
 
     println("Start reading data...")
-    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = if (params.libsvm == 1) {
-      TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
-    }
-    else {
-      TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
+    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
+      case "libsvm" =>
+        TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
+      case "text" =>
+        TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
+      case "obj" =>
+        (sc.objectFile(params.input.mkString(",")), null)
     }
     println("Finished reading data.")
 
