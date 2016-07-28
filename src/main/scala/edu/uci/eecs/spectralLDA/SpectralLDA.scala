@@ -39,7 +39,7 @@ object SpectralLDA {
   def main(args: Array[String]): Unit = {
     val defaultParams = Params()
 
-    val parser: OptionParser[Params] = new OptionParser[Params]("LDA Example") {
+    val parser: OptionParser[Params] = new OptionParser[Params]("SpectralLDA") {
       head("Spectral LDA Factorization")
 
       opt[Int]('k', "k").required()
