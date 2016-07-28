@@ -177,7 +177,7 @@ class TensorSketchTest extends FlatSpec with Matchers {
     val sketcher = TensorSketcher[Double, Double](
       n = Seq(5, 5),
       B = 10,
-      b = Math.pow(2, 4).toInt
+      b = Math.pow(2, 8).toInt
     )
 
     val W = DenseMatrix.rand[Double](50, 5)
