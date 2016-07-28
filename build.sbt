@@ -2,7 +2,7 @@ name := "SpectralLDA-Tensor"
 
 version := "1.0"
 
-scalaVersion := "2.10.6"
+scalaVersion := "2.11.8"
 crossScalaVersions := Seq("2.10.6", "2.11.8")
 
 
@@ -42,7 +42,7 @@ libraryDependencies ++= Seq(
 
 
 {
-  val defaultSparkVersion = "[1.6.1,)"
+  val defaultSparkVersion = "[2.0.0,)"
   val sparkVersion =
     scala.util.Properties.envOrElse("SPARK_VERSION", defaultSparkVersion)
 
