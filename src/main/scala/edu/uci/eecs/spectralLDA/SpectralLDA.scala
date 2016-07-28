@@ -6,16 +6,19 @@
 
 package edu.uci.eecs.spectralLDA
 
-import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
+import edu.uci.eecs.spectralLDA.algorithm.{TensorLDA, TensorLDASketch}
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-import breeze.linalg.{DenseVector, DenseMatrix, SparseVector}
-import org.apache.spark.{SparkConf,SparkContext}
+import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
+import org.apache.spark.{SparkConf, SparkContext}
+
 import scalaxy.loops._
 import scala.language.postfixOps
 import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import java.io._
+
+import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
 object SpectralLDA {
   private case class Params(
@@ -26,6 +29,9 @@ object SpectralLDA {
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
+                             sketching: Boolean = false,
+                             B: Int = 50,
+                             b: Int = Math.pow(2, 8).toInt,
                              outputDir: String = ".",
                              stopWordFile: String = "src/main/resources/Data/datasets/StopWords_common.txt"
                           )
@@ -41,7 +47,7 @@ object SpectralLDA {
         .action((x, c) => c.copy(k = x))
         .validate(x =>
           if (x > 0) success
-          else failure("k must be positive.")
+          else failure("The number of topics k must be positive.")
         )
       opt[Double]("topicConcentration").abbr("alpha0").required()
         .text("the sum of the prior vector for topic distribution e.g. 5k or 10k. The higher it is; the less variation in the drawn topic distribution vector")
@@ -79,6 +85,24 @@ object SpectralLDA {
         .validate(x =>
           if (x == "obj" || x == "libsvm" || x == "text") success
           else failure("""inputType must be "obj", "libsvm" or "text".""")
+        )
+
+      opt[Unit]("sketching")
+        .text("Tensor decomposition via sketching")
+        .action((_, c) => c.copy(sketching = true))
+      opt[Int]('B', "B")
+        .text(s"number of hash families for sketching. default: ${defaultParams.B}")
+        .action((x, c) => c.copy(B = x))
+        .validate(x =>
+          if (x > 0) success
+          else failure("The number of hash families B for sketching must be positive.")
+        )
+      opt[Int]('b', "b")
+        .text(s"length of a hash for sketching, preferably to be power of 2. default: ${defaultParams.b}")
+        .action((x, c) => c.copy(b = x))
+        .validate(x =>
+          if (x > 0) success
+          else failure("The length of a hash b for sketching must be positive.")
         )
 
       opt[String]('o', "outputDir").valueName("<dir>")
@@ -135,15 +159,33 @@ object SpectralLDA {
     }
     println("Finished reading data.")
 
-    val myTensorLDA: TensorLDA = new TensorLDA(
-      params.k,
-      params.topicConcentration,
-      params.maxIterations,
-      params.tolerance
-    )
     println("Start ALS algorithm for tensor decomposition...")
-
-    val (beta, alpha) = myTensorLDA.fit(documents)
+    val (beta, alpha) = if (params.sketching) {
+      println("Running tensor decomposition via sketching...")
+      val sketcher = TensorSketcher[Double, Double](
+        n = Seq(params.k, params.k, params.k),
+        B = params.B,
+        b = params.b
+      )
+      val lda = new TensorLDASketch(
+        dimK = params.k,
+        alpha0 = params.topicConcentration,
+        sketcher = sketcher,
+        maxIterations = params.maxIterations,
+        nonNegativeDocumentConcentration = true,
+        randomisedSVD = true
+      )(tolerance = params.tolerance)
+      lda.fit(documents)
+    }
+    else {
+      val lda = new TensorLDA(
+        params.k,
+        params.topicConcentration,
+        params.maxIterations,
+        params.tolerance
+      )
+      lda.fit(documents)
+    }
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
@@ -179,6 +221,7 @@ object SpectralLDA {
       writer_alpha.write(s"$thisAlpha \t")
     }
     writer_alpha.close()
+
     (documents, vocabArray, beta, alpha)
   }
 }
