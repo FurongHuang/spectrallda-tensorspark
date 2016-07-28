@@ -50,7 +50,7 @@ object SpectralLDA {
           else failure("The number of topics k must be positive.")
         )
       opt[Double]("topicConcentration").abbr("alpha0").required()
-        .text("the sum of the prior vector for topic distribution e.g. k or 5k. The higher it is; the less variation in the drawn topic distribution vector")
+        .text("the sum of the prior vector for topic distribution e.g. k for a non-informative prior.")
         .action((x, c) => c.copy(topicConcentration = x))
         .validate(x =>
           if (x > 0.0) success
