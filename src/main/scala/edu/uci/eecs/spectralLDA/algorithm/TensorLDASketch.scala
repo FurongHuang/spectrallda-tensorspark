@@ -19,6 +19,9 @@ class TensorLDASketch(dimK: Int,
                       nonNegativeDocumentConcentration: Boolean = true)
                      (implicit tolerance: Double = 1e-9)
   extends Serializable {
+  assert(dimK > 0, "The number of topics dimK must be positive.")
+  assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
+  assert(maxIterations > 0, "The number of iterations for ALS must be positive.")
   assert(sketcher.n forall { _ == dimK }, s"The sketcher must work on symmetric tensors of shape ($dimK, ..., $dimK).")
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
