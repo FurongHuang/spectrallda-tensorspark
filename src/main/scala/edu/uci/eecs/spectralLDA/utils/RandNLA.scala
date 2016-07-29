@@ -17,6 +17,9 @@ object RandNLA {
     * gives much worse empirical performance than Musco & Musco 2016.
     *
     * Ref:
+    * Halko, N, P.G. Martinsson, & J.A. Tropp, Finding Structure with Randomness:
+    * Probabilistic Algorithms for Constructing Approximate Matrix Decompositions, 2011
+    * Gu, Ming, Subspace Iteration Randomization and Singular Value Problems, 2014
     * Musco, Cameron, & Christopher Musco, Randomized Block Krylov Methods for Stronger
     * and Faster Approximate Singular Value Decomposition, 2016
     *

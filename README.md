@@ -16,39 +16,116 @@ sbt ++2.10.6 package
 sbt "+ package"
 ```
 
-### To build the project
-1. install `sbt`
-2. open your terminal:
+The documentation below supposes we're using Scala 2.11.
+
+### To run from the command line
+1. First compile and package the entire repo.
 
     ```bash
-    cd SpectralLDA-TensorSpark
-    sbt "+ assembly"
-    ```    
+    sbt package
+    ```
     
-    This will pack the class files and all the dependencies into a single fat JAR file for both Scala 2.10 and 2.11. The path to the jar is: `<PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar`
-3. deploy the application using [spark-submit](http://spark.apache.org/docs/latest/submitting-applications.html).  
-
-### Let's run some experiments
-
-1. Synthetic Experiments:
+    It will produce `target/scala-2.11/spectrallda-tensor_2.11-1.0.jar`.
+    
+2. The command line usage is 
+    
     ```bash
-    ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA \
-    --master local[2] --deploy-mode client \
-    <PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar \
-    <PROJECT-PATH>/src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt \
-    --libsvm 1 
+    Spectral LDA Factorization
+    Usage: SpectralLDA [options] <input>...
+    
+      -k, --k <value>          number of topics
+      -alpha0, --topicConcentration <value>
+                               the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
+      -max-iter, --maxIterations <value>
+                               number of iterations of learning. default: 200
+      -tol, --tolerance <value>
+                               tolerance. default: 1.0E-9
+      -V, --vocabSize <value>  number of distinct word types to use, ordered by frequency. default: -1
+      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
+      --sketching              Tensor decomposition via sketching
+      -B, --B <value>          number of hash families for sketching. default: 50
+      -b, --b <value>          length of a hash for sketching, preferably to be power of 2. default: 256
+      -o, --outputDir <dir>    output write path. default: .
+      --stopWordFile <value>   filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
+      --help                   prints this usage text
+      <input>...               paths of input files    
     ```
-    1. Data generation script in MATLAB is provided in the repository [here](https://bitbucket.org/furongh/spectral-lda/src/b5be6b9e2a45b824bbc60a0bb927eff6030f4256/Code/tensorfac/data/SyntheticDataGenerator.m?at=master&fileviewer=file-view-default). One can play around with hyperparameters such as Sample Size, Vocabulary Size, Hidden Dimension, and How mixed the topics are.  The synthetic data for training are then generated as `datasets/synthetic/samples_train_libsvm.txt` and `datasets/synthetic/samples_test_libsvm.txt` in the libsvm format and as `datasets/synthetic/samples_train_DOK.txt` and `datasets/synthetic/samples_test_DOK.txt` in the DOK format. 
-    2. Our program reads libsvm format.
+    
+    The parameters `-k`, `-alpha0` and the input file paths are required, the others are optional.
+    
+    A good choice for `alpha0` is equal to `k` so that we have a non-informative Dirichilet prior for the topic distribution -- any topic distribution is equally likely.
+    
+    By default the sketching is turned off, thus we could be constrained by memory when processing large data set. We could specify `--sketching` to do the sketching-based decomposition. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These default values should be good for most scenarios.
+    
+    The file type `-t` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
+    
+3. An example call from command line is
 
-2. Real Experiments:
     ```bash
-    ./bin/spark-submit --class edu.uci.eecs.spectralLDA.SpectralLDA \
-    --master local[2] --deploy-mode client \
-    <PROJECT-PATH>/target/scala-<ver>/SpectralLDA-Tensor-assembly-1.0.jar \
-    <PROJECT-PATH>/src/main/resources/Data/datasets/enron_email/corpus.txt
+    spark-submit --packages com.github.scopt:scopt_2.11:3.5.0 \
+    --class edu.uci.eecs.spectralLDA.SpectralLDA \
+    target/scala-2.11/spectrallda-tensor_2.11-1.0.jar \
+    -k 5 -alpha0 5.0 -t libsvm -o results --sketching \
+    src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt
     ```
-    1. Our program takes raw text (NOTE: Each text file line should hold 1 document). 
+    
+    It runs with `alpha0=k=5`, enables the sketching, specifies the input file in LIBSVM format, and outputs results in `result/`.
+    
+### API usage
+For sketching-based decomposition, below is an example snippet.
+
+```scala
+import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDASketch
+import breeze.linalg._
+
+# The sketcher that hashes a tensor into B-by-b matrix,
+# where B is the number of hash families, b is the length of
+# a single hash
+val sketcher = TensorSketcher[Double, Double](
+  n = Seq(params.k, params.k, params.k),
+  B = params.B,
+  b = params.b
+)
+
+# The sketching-based fitting algorithm 
+val lda = new TensorLDASketch(
+  dimK = params.k,
+  alpha0 = params.topicConcentration,
+  sketcher = sketcher,
+  maxIterations = params.maxIterations,
+  nonNegativeDocumentConcentration = true,
+  randomisedSVD = true
+)(tolerance = params.tolerance)
+
+# Fit against the documents
+# beta is the V-by-k matrix, where V is the vocabulary size, 
+# k is the number of topics. It stores the word distribution 
+# per topic column-wise
+# alpha is the length-k Dirichlet prior for the topic distribution
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+```
+
+For non-sketching-based decomposition, the usage is simpler.
+
+```scala
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
+import breeze.linalg._
+
+val lda = new TensorLDA(
+  dimK = params.k,
+  alpha0 = params.topicConcentration,
+  maxIterations = params.maxIterations,
+  tolerance = params.tolerance
+)
+
+# Fit against the documents
+# beta is the V-by-k matrix, where V is the vocabulary size, 
+# k is the number of topics. It stores the word distribution 
+# per topic column-wise
+# alpha is the length-k Dirichlet prior for the topic distribution
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+```
 
 ### Set up Spark 2.0.0 to use system native BLAS/LAPACK
 
@@ -73,7 +150,41 @@ sbt "+ package"
 
 Now if we run the above experiments again, any "WARN BLAS" or "WARN LAPACK" messages should have disappeared.
 
+### I have millions of small text files...
+If we open them simply via `sc.wholeTextFiles()` the system will spend forever long time querying the file system for the list of all the file names. The solution is to first combine them in Hadoop SequenceFiles of `RDD[(String, String)]`, then process them into word count vectors and vocabulary array.
 
+1. We provided `edu.uci.eecs.spectralLDA.textprocessing.CombineSmallTextFiles` to squash many text files into a Hadoop SequenceFile. For example, all the Wikipedia articles are extracted under `wikitext/0` to `wikitext/9999`, with each subdirectory containing thousands of text files.
+
+    ```bash
+    # Under wikitext/, first list all the subdirectory names,
+    # then call xargs to feed, say 50 subdirectories to 
+    find . -mindepth 1 -maxdepth 1 | xargs -n 50 \
+    spark-submit --class edu.uci.eecs.spectralLDA.textprocessing.CombineSmallTextFiles \
+    target/scala-2.11/spectrallda-tensor_2.11-1.0.jar
+    ```
+    
+    When the loop finishes, we'd find many `*.obj` Hadoop SequenceFiles under `wikitext/`.
+    
+2. Within `sbt console`, we process the SequenceFiles into word count vectors `RDD[(Long, SparseVector[Double])]` and dictionary array, and save them. 
+
+    ```bash
+    sbt console
+    scala> import org.apache.spark.{SparkConf, SparkContext}
+    scala> import org.apache.spark.rdd.RDD
+    scala> import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+    scala> val conf = new SparkConf().setAppName("Word Count")
+    scala> val sc = new SparkContext(conf)
+    scala> val (docs, dictionary) = TextProcessor.processDocumentsRDD(
+    scala>   sc.objectFile("wikitext/*.obj"),
+    scala>   stopwordFile = "src/main/resources/Data/datasets/StopWords_common.txt",
+    scala>   vocabSize = <vocabSize>
+    scala> )
+    scala> docs.saveAsObjectFile("docs.obj")
+    ```
+    
+    The output file `docs.obj` contains serialised `RDD[(Long, SparseVector[Double])]`. When we run `SpectralLDA` later on, we could specify the input file `docs.obj` and the file type as `obj`.
+
+    
 ## References
 * White Paper: http://newport.eecs.uci.edu/anandkumar/pubs/whitepaper.pdf
 * Fast and Guaranteed Tensor Decomposition via Sketching: http://arxiv.org/abs/1506.04448
