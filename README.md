@@ -71,6 +71,61 @@ The documentation below supposes we're using Scala 2.11.
     
     It runs with `alpha0=k=5`, enables the sketching, specifies the input file in LIBSVM format, and outputs results in `result/`.
     
+### API usage
+For sketching-based decomposition, below is an example snippet.
+
+```scala
+import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDASketch
+import breeze.linalg._
+
+# The sketcher that hashes a tensor into B-by-b matrix,
+# where B is the number of hash families, b is the length of
+# a single hash
+val sketcher = TensorSketcher[Double, Double](
+  n = Seq(params.k, params.k, params.k),
+  B = params.B,
+  b = params.b
+)
+
+# The sketching-based fitting algorithm 
+val lda = new TensorLDASketch(
+  dimK = params.k,
+  alpha0 = params.topicConcentration,
+  sketcher = sketcher,
+  maxIterations = params.maxIterations,
+  nonNegativeDocumentConcentration = true,
+  randomisedSVD = true
+)(tolerance = params.tolerance)
+
+# Fit against the documents
+# beta is the V-by-k matrix, where V is the vocabulary size, 
+# k is the number of topics. It stores the word distribution 
+# per topic column-wise
+# alpha is the length-k Dirichlet prior for the topic distribution
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+```
+
+For non-sketching-based decomposition, the usage is simpler.
+
+```scala
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
+import breeze.linalg._
+
+val lda = new TensorLDA(
+  dimK = params.k,
+  alpha0 = params.topicConcentration,
+  maxIterations = params.maxIterations,
+  tolerance = params.tolerance
+)
+
+# Fit against the documents
+# beta is the V-by-k matrix, where V is the vocabulary size, 
+# k is the number of topics. It stores the word distribution 
+# per topic column-wise
+# alpha is the length-k Dirichlet prior for the topic distribution
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+```
 
 ### Set up Spark 2.0.0 to use system native BLAS/LAPACK
 
