@@ -6,17 +6,7 @@
 * Version: 1.0
 
 ## How do I get set up?
-We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.0 upward. In `build.sbt` we also support cross build to Scala 2.10.6.
-
-For example, the first line below will compile and package the code using Scala 2.11.8 as it's the default setup. The second line uses Scala 2.10.6 as we explicitly called for it. If we precede any `sbt` command by the `+` sign as does the third line, both the Scala 2.10 and 2.11 based versions will be produced.
-
-```bash
-sbt package
-sbt ++2.10.6 package
-sbt "+ package"
-```
-
-The documentation below supposes we're using Scala 2.11.
+We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.0 upward. Cross build to Scala 2.10.6 is also supported. The documentation below supposes we're using Scala 2.11.
 
 ### To run from the command line
 1. First compile and package the entire repo.
@@ -93,10 +83,10 @@ val lda = new TensorLDASketch(
   dimK = params.k,
   alpha0 = params.topicConcentration,
   sketcher = sketcher,
-  maxIterations = params.maxIterations,
-  nonNegativeDocumentConcentration = true,
-  randomisedSVD = true
-)(tolerance = params.tolerance)
+  maxIterations = params.maxIterations,      // optional, default: 200
+  nonNegativeDocumentConcentration = true,   // optional, default: true
+  randomisedSVD = true                       // optional, default: true
+)(tolerance = params.tolerance)              // optional, default: 1e-9
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
@@ -115,8 +105,8 @@ import breeze.linalg._
 val lda = new TensorLDA(
   dimK = params.k,
   alpha0 = params.topicConcentration,
-  maxIterations = params.maxIterations,
-  tolerance = params.tolerance
+  maxIterations = params.maxIterations,  // optional, default 200
+  tolerance = params.tolerance           // optional, default 1e-9
 )
 
 // Fit against the documents
