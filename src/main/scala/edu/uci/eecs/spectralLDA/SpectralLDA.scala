@@ -155,7 +155,7 @@ object SpectralLDA {
       case "text" =>
         TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
       case "obj" =>
-        (sc.objectFile(params.input.mkString(",")), null)
+        (sc.objectFile(params.input.mkString(",")), Array[String]())
     }
     println("Finished reading data.")
 
