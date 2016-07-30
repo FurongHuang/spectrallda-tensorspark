@@ -86,7 +86,7 @@ object TextProcessor {
   : (RDD[(Long, breeze.linalg.SparseVector[Double])], Array[String]) ={
     println(path)
     val mydocuments: RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path)
-    val vocabsize = mydocuments.take(1)(0)._2.length
+    val vocabsize = mydocuments.map(_._2.length).take(1)(0)
     val vocabarray: Array[String] = (0 until vocabsize).toArray.map(x => x.toString)
     (mydocuments, vocabarray)
   }

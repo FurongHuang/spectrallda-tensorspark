@@ -6,17 +6,7 @@
 * Version: 1.0
 
 ## How do I get set up?
-We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.0 upward. In `build.sbt` we also support cross build to Scala 2.10.6.
-
-For example, the first line below will compile and package the code using Scala 2.11.8 as it's the default setup. The second line uses Scala 2.10.6 as we explicitly called for it. If we precede any `sbt` command by the `+` sign as does the third line, both the Scala 2.10 and 2.11 based versions will be produced.
-
-```bash
-sbt package
-sbt ++2.10.6 package
-sbt "+ package"
-```
-
-The documentation below supposes we're using Scala 2.11.
+We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.0 upward. Cross build to Scala 2.10.6 is also supported. The documentation below supposes we're using Scala 2.11.
 
 ### To run from the command line
 1. First compile and package the entire repo.
@@ -79,30 +69,30 @@ import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import edu.uci.eecs.spectralLDA.algorithm.TensorLDASketch
 import breeze.linalg._
 
-# The sketcher that hashes a tensor into B-by-b matrix,
-# where B is the number of hash families, b is the length of
-# a single hash
+// The sketcher that hashes a tensor into B-by-b matrix,
+// where B is the number of hash families, b is the length of
+// a single hash
 val sketcher = TensorSketcher[Double, Double](
   n = Seq(params.k, params.k, params.k),
   B = params.B,
   b = params.b
 )
 
-# The sketching-based fitting algorithm 
+// The sketching-based fitting algorithm 
 val lda = new TensorLDASketch(
   dimK = params.k,
   alpha0 = params.topicConcentration,
   sketcher = sketcher,
-  maxIterations = params.maxIterations,
-  nonNegativeDocumentConcentration = true,
-  randomisedSVD = true
-)(tolerance = params.tolerance)
+  maxIterations = params.maxIterations,      // optional, default: 200
+  nonNegativeDocumentConcentration = true,   // optional, default: true
+  randomisedSVD = true                       // optional, default: true
+)(tolerance = params.tolerance)              // optional, default: 1e-9
 
-# Fit against the documents
-# beta is the V-by-k matrix, where V is the vocabulary size, 
-# k is the number of topics. It stores the word distribution 
-# per topic column-wise
-# alpha is the length-k Dirichlet prior for the topic distribution
+// Fit against the documents
+// beta is the V-by-k matrix, where V is the vocabulary size, 
+// k is the number of topics. It stores the word distribution 
+// per topic column-wise
+// alpha is the length-k Dirichlet prior for the topic distribution
 val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
 ```
 
@@ -115,15 +105,15 @@ import breeze.linalg._
 val lda = new TensorLDA(
   dimK = params.k,
   alpha0 = params.topicConcentration,
-  maxIterations = params.maxIterations,
-  tolerance = params.tolerance
+  maxIterations = params.maxIterations,  // optional, default 200
+  tolerance = params.tolerance           // optional, default 1e-9
 )
 
-# Fit against the documents
-# beta is the V-by-k matrix, where V is the vocabulary size, 
-# k is the number of topics. It stores the word distribution 
-# per topic column-wise
-# alpha is the length-k Dirichlet prior for the topic distribution
+// Fit against the documents
+// beta is the V-by-k matrix, where V is the vocabulary size, 
+// k is the number of topics. It stores the word distribution 
+// per topic column-wise
+// alpha is the length-k Dirichlet prior for the topic distribution
 val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
 ```
 
@@ -157,7 +147,7 @@ If we open them simply via `sc.wholeTextFiles()` the system will spend forever l
 
     ```bash
     # Under wikitext/, first list all the subdirectory names,
-    # then call xargs to feed, say 50 subdirectories to 
+    # then call xargs to feed, say 50 subdirectories each time to CombineSmallTextFiles
     find . -mindepth 1 -maxdepth 1 | xargs -n 50 \
     spark-submit --class edu.uci.eecs.spectralLDA.textprocessing.CombineSmallTextFiles \
     target/scala-2.11/spectrallda-tensor_2.11-1.0.jar
@@ -167,19 +157,18 @@ If we open them simply via `sc.wholeTextFiles()` the system will spend forever l
     
 2. Within `sbt console`, we process the SequenceFiles into word count vectors `RDD[(Long, SparseVector[Double])]` and dictionary array, and save them. 
 
-    ```bash
-    sbt console
-    scala> import org.apache.spark.{SparkConf, SparkContext}
-    scala> import org.apache.spark.rdd.RDD
-    scala> import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-    scala> val conf = new SparkConf().setAppName("Word Count")
-    scala> val sc = new SparkContext(conf)
-    scala> val (docs, dictionary) = TextProcessor.processDocumentsRDD(
-    scala>   sc.objectFile("wikitext/*.obj"),
-    scala>   stopwordFile = "src/main/resources/Data/datasets/StopWords_common.txt",
-    scala>   vocabSize = <vocabSize>
-    scala> )
-    scala> docs.saveAsObjectFile("docs.obj")
+    ```scala
+    import org.apache.spark.{SparkConf, SparkContext}
+    import org.apache.spark.rdd.RDD
+    import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+    val conf = new SparkConf().setAppName("Word Count")
+    val sc = new SparkContext(conf)
+    val (docs, dictionary) = TextProcessor.processDocumentsRDD(
+      sc.objectFile("wikitext/*.obj"),
+      stopwordFile = "src/main/resources/Data/datasets/StopWords_common.txt",
+      vocabSize = <vocabSize>
+    )
+    docs.saveAsObjectFile("docs.obj")
     ```
     
     The output file `docs.obj` contains serialised `RDD[(Long, SparseVector[Double])]`. When we run `SpectralLDA` later on, we could specify the input file `docs.obj` and the file type as `obj`.

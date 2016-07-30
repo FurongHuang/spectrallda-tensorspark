@@ -155,7 +155,7 @@ object SpectralLDA {
       case "text" =>
         TextProcessor.processDocuments(sc, params.input.mkString(","), params.stopWordFile, params.vocabSize)
       case "obj" =>
-        (sc.objectFile(params.input.mkString(",")), null)
+        (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
     println("Finished reading data.")
 
@@ -190,7 +190,7 @@ object SpectralLDA {
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
     val numDocs: Long = documents.count()
-    val dimVocab: Int = documents.take(1)(0)._2.length
+    val dimVocab: Int = documents.map(_._2.length).take(1)(0)
     sc.stop()
     println()
     println("Corpus summary:")
