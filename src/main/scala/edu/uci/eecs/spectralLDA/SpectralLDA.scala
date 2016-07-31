@@ -27,6 +27,7 @@ object SpectralLDA {
                              k: Int = 1,
                              topicConcentration: Double = 5.0,
                              idfLowerBound: Double = 1.0,
+                             m2ConditionNumberUB: Double = 50.0,
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
@@ -64,6 +65,13 @@ object SpectralLDA {
         .validate(x =>
           if (x >= 1.0) success
           else failure("idfLowerBound must be at least 1.0.")
+        )
+      opt[Double]("M2-cond")
+        .text(s"stop if the M2 condition number is higher than the given bound. default: ${defaultParams.m2ConditionNumberUB}")
+        .action((x, c) => c.copy(m2ConditionNumberUB = x))
+        .validate(x =>
+          if (x > 0.0) success
+          else failure("M2 condition number upper bound must be positive.")
         )
 
       opt[Int]("maxIterations").abbr("max-iter")
@@ -182,6 +190,7 @@ object SpectralLDA {
         dimK = params.k,
         alpha0 = params.topicConcentration,
         sketcher = sketcher,
+        m2ConditionNumberUB = params.m2ConditionNumberUB,
         maxIterations = params.maxIterations,
         nonNegativeDocumentConcentration = true,
         randomisedSVD = true

@@ -28,6 +28,7 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
                                the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
       -idf, --idfLowerBound <value>
                                only work on terms with IDF above the lower bound. default: 1.0
+      --M2-cond <value>        stop if the M2 condition number is higher than the given bound. default: 50.0
       -max-iter, --maxIterations <value>
                                number of iterations of learning. default: 200
       --sketching              Tensor decomposition via sketching
@@ -44,7 +45,9 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     
     A good choice for `alpha0` is equal to `k` so that we have a non-informative Dirichilet prior for the topic distribution -- any topic distribution is equally likely.
     
-    By default the sketching is turned off, thus we could be constrained by memory when processing large data set. We could specify `--sketching` to do the sketching-based decomposition. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These default values should be good for most scenarios.
+    `--M2-cond` checks the shifted M2 condition number (the ratio of the maximum eigenvalue to the minimum one) and stops if it's above the given bound.
+    
+    We could specify `--sketching` to do the sketching-based decomposition, which is off by default. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These values are a good choice to start with.
     
     The file type `-t` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
     

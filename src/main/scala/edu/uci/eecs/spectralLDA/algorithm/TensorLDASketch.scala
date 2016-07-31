@@ -16,6 +16,7 @@ class TensorLDASketch(dimK: Int,
                       alpha0: Double,
                       maxIterations: Int = 200,
                       sketcher: TensorSketcher[Double, Double],
+                      m2ConditionNumberUB: Double = Double.PositiveInfinity,
                       randomisedSVD: Boolean = true,
                       nonNegativeDocumentConcentration: Boolean = true)
                      (implicit tolerance: Double = 1e-9)
@@ -32,6 +33,7 @@ class TensorLDASketch(dimK: Int,
       dimK, alpha0,
       documents,
       sketcher,
+      m2ConditionNumberUB = m2ConditionNumberUB,
       randomisedSVD = randomisedSVD
     )
 
@@ -57,10 +59,10 @@ class TensorLDASketch(dimK: Int,
     // If it's too large (>10), the algorithm may not be able to output reasonable results.
     // It could be due to some very frequent (low IDF) words or that we specified dimK
     // larger than the rank of the shifted M2.
-    val conditionNumber = max(cumulantSketch.eigenValuesM2) / min(cumulantSketch.eigenValuesM2)
-    println(s"Top eigenvalues of shifted M2: ${cumulantSketch.eigenValuesM2}")
-    println(s"The ratio of the maximum to the minimum (Condition number): $conditionNumber")
-    println("If the condition number is too large (>10), the algorithm may not be able to " +
+    val m2ConditionNumber = max(cumulantSketch.eigenValuesM2) / min(cumulantSketch.eigenValuesM2)
+    println(s"Shifted M2 top $dimK eigenvalues: ${cumulantSketch.eigenValuesM2}")
+    println(s"Shifted M2 condition number: $m2ConditionNumber")
+    println("If the condition number is too large (e.g. >10), the algorithm may not be able to " +
             "output reasonable results. It could be due to the existence of very frequent words " +
             "across the documents or that the specified k is larger than the true number of topics.")
 
