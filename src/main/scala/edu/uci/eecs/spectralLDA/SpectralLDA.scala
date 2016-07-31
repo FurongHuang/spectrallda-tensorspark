@@ -26,6 +26,7 @@ object SpectralLDA {
                              inputType: String = "obj", // "libsvm", "text" or "obj"
                              k: Int = 1,
                              topicConcentration: Double = 5.0,
+                             idfLowerBound: Double = 1.0,
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
@@ -55,6 +56,14 @@ object SpectralLDA {
         .validate(x =>
           if (x > 0.0) success
           else failure("topicConcentration must be positive.")
+        )
+
+      opt[Double]("idfLowerBound").abbr("idf")
+        .text(s"only work on terms with IDF above the lower bound. default: ${defaultParams.idfLowerBound}")
+        .action((x, c) => c.copy(idfLowerBound = x))
+        .validate(x =>
+          if (x >= 1.0) success
+          else failure("idfLowerBound must be at least 1.0.")
         )
 
       opt[Int]("maxIterations").abbr("max-iter")
@@ -148,7 +157,7 @@ object SpectralLDA {
     println("Generated the SparkConetxt")
 
     println("Start reading data...")
-    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
+    val (rawDocuments: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
       case "libsvm" =>
         TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
       case "text" =>
@@ -156,6 +165,9 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
+
+    val documents = TextProcessor.filterIDF(rawDocuments, params.idfLowerBound)
+
     println("Finished reading data.")
 
     println("Start ALS algorithm for tensor decomposition...")

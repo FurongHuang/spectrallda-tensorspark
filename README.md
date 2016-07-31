@@ -26,6 +26,8 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
       -k, --k <value>          number of topics
       -alpha0, --topicConcentration <value>
                                the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
+      -idf, --idfLowerBound <value>
+                               only work on terms with IDF above the lower bound. default: 1.0
       -max-iter, --maxIterations <value>
                                number of iterations of learning. default: 200
       --sketching              Tensor decomposition via sketching
@@ -85,6 +87,10 @@ val lda = new TensorLDASketch(
   randomisedSVD = true                       // optional, default: true
 )(tolerance = params.tolerance)              // optional, default: 1e-9
 
+// If we want to only work on terms with IDF above a certain bound
+// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
+
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
 // k is the number of topics. It stores the word distribution 
@@ -105,6 +111,10 @@ val lda = new TensorLDA(
   maxIterations = params.maxIterations,  // optional, default 200
   tolerance = params.tolerance           // optional, default 1e-9
 )
+
+// If we want to only work on terms with IDF above a certain bound
+// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
