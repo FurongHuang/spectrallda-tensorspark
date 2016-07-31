@@ -17,6 +17,7 @@ import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import java.io._
+import java.nio.file.{Files, Paths}
 
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
@@ -124,6 +125,10 @@ object SpectralLDA {
       opt[String]('o', "outputDir").valueName("<dir>")
         .text(s"output write path. default: ${defaultParams.outputDir}")
         .action((x, c) => c.copy(outputDir = x))
+        .validate(x =>
+          if (Files.exists(Paths.get(x))) success
+          else failure(s"Output directory $x doesn't exist.")
+        )
       opt[String]("stopWordFile")
         .text(s"filepath for a list of stopwords. default: ${defaultParams.stopWordFile}")
         .action((x, c) => c.copy(stopWordFile = x))
