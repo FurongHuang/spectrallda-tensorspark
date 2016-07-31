@@ -1,5 +1,6 @@
 package edu.uci.eecs.spectralLDA.textprocessing
 
+import breeze.linalg.{DenseVector, SparseVector, min}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -145,4 +146,19 @@ object TextProcessor {
                                            numFeatures: Int): RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, numFeatures, sc.defaultMinPartitions)
 
   private def loadLibSVMFile2sparseVector(sc: SparkContext, path: String): RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, -1)
+
+  /** Returns the Inverse Document Frequency
+    *
+    * @param docs the documents RDD
+    * @return     the IDF vector
+    */
+  def inverseDocumentFrequency(docs: RDD[(Long, SparseVector[Double])]): DenseVector[Double] = {
+    val numDocs: Long = docs.count
+    val documentFrequency: SparseVector[Double] = docs
+      .map {
+        case (_, w: SparseVector[Double]) => min(w, 1e-8) map { _ * 1e8 }
+      }
+      .reduce(_ + _)
+    numDocs.toDouble / documentFrequency.toDenseVector
+  }
 }
