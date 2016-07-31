@@ -64,7 +64,7 @@ object SpectralLDA {
           if (x > 0) success
           else failure("maxIterations must be positive.")
         )
-      opt[Double]("tolerance").abbr("tol")
+      opt[Double]("tolerance").abbr("tol").hidden()
         .text(s"tolerance. default: ${defaultParams.tolerance}")
         .action((x, c) => c.copy(tolerance = x))
         .validate(x =>
@@ -72,20 +72,12 @@ object SpectralLDA {
           else failure("tolerance must be positive.")
         )
 
-      opt[Int]('V', "vocabSize")
+      opt[Int]('V', "vocabSize").hidden()
         .text(s"number of distinct word types to use, ordered by frequency. default: ${defaultParams.vocabSize}")
         .action((x, c) => c.copy(vocabSize = x))
         .validate(x =>
           if (x == -1 || x > 0) success
           else failure("vocabSize must be -1 for all or positive."))
-
-      opt[String]('t', "inputType")
-        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
-        .action((x, c) => c.copy(inputType = x))
-        .validate(x =>
-          if (x == "obj" || x == "libsvm" || x == "text") success
-          else failure("""inputType must be "obj", "libsvm" or "text".""")
-        )
 
       opt[Unit]("sketching")
         .text("Tensor decomposition via sketching")
@@ -105,6 +97,13 @@ object SpectralLDA {
           else failure("The length of a hash b for sketching must be positive.")
         )
 
+      opt[String]('t', "inputType")
+        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
+        .action((x, c) => c.copy(inputType = x))
+        .validate(x =>
+          if (x == "obj" || x == "libsvm" || x == "text") success
+          else failure("""inputType must be "obj", "libsvm" or "text".""")
+        )
       opt[String]('o', "outputDir").valueName("<dir>")
         .text(s"output write path. default: ${defaultParams.outputDir}")
         .action((x, c) => c.copy(outputDir = x))

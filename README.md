@@ -28,13 +28,10 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
                                the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
       -max-iter, --maxIterations <value>
                                number of iterations of learning. default: 200
-      -tol, --tolerance <value>
-                               tolerance. default: 1.0E-9
-      -V, --vocabSize <value>  number of distinct word types to use, ordered by frequency. default: -1
-      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
       --sketching              Tensor decomposition via sketching
       -B, --B <value>          number of hash families for sketching. default: 50
       -b, --b <value>          length of a hash for sketching, preferably to be power of 2. default: 256
+      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
       -o, --outputDir <dir>    output write path. default: .
       --stopWordFile <value>   filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
       --help                   prints this usage text
