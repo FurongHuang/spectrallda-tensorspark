@@ -170,10 +170,11 @@ object RandNLA {
     val para_shift: Double = alpha0
 
     val unshiftedM2 = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
+    val qBroadcast = documents.sparkContext.broadcast[DenseMatrix[Double]](q)
     documents
       .flatMap {
         doc => accumulate_M_mul_S(
-          q, doc._3, doc._2
+          qBroadcast.value, doc._3, doc._2
         )
       }
       .reduceByKey(_ + _)
@@ -181,6 +182,7 @@ object RandNLA {
       .foreach {
         case (token, v) => unshiftedM2(token, ::) := v.t
       }
+    qBroadcast.unpersist
 
     val m2 = unshiftedM2 * para_main - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift
 
