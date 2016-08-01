@@ -40,7 +40,7 @@ object RandNLA {
               numDocs: Long,
               firstOrderMoments: DenseVector[Double],
               documents: RDD[(Long, Double, SparseVector[Double])],
-              nIter: Int = 3)
+              nIter: Int = 1)
             (implicit randBasis: RandBasis = Rand)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     assert(vocabSize >= dimK)
