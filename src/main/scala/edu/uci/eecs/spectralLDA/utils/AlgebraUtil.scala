@@ -22,22 +22,12 @@ object AlgebraUtil {
     breeze.linalg.pinv(to_be_inverted)
   }
 
-  def colWiseNorm2(A: breeze.linalg.DenseMatrix[Double]): breeze.linalg.DenseVector[Double] = {
-    val normVec = breeze.linalg.DenseVector.zeros[Double](A.cols)
-    for (i <- 0 until A.cols optimized) {
-      val thisnorm: Double = Math.sqrt(A(::, i) dot A(::, i))
-      normVec(i) = (if (thisnorm > TOLERANCE) thisnorm else TOLERANCE)
-    }
-    normVec
-  }
-
-
   def matrixNormalization(B: DenseMatrix[Double]): DenseMatrix[Double] = {
     val A: DenseMatrix[Double] = B.copy
-    val colNorms: DenseVector[Double] = sqrt(diag(A.t * A))
+    val colNorms: DenseVector[Double] = norm(A(::, *)).toDenseVector
 
     for (i <- 0 until A.cols optimized) {
-      A(::, i) :*= (if (colNorms(i) > TOLERANCE) (1.0 / colNorms(i)) else TOLERANCE)
+      A(::, i) :/= colNorms(i)
     }
     A
   }

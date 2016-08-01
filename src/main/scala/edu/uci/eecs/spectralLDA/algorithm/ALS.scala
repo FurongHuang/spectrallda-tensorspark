@@ -7,8 +7,8 @@
  */
  import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
  import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
- import breeze.linalg.{DenseMatrix, DenseVector}
- import breeze.stats.distributions.{Rand, RandBasis, Gaussian}
+ import breeze.linalg.{*, DenseMatrix, DenseVector, norm}
+ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
  import org.apache.spark.rdd.RDD
  import org.apache.spark.SparkContext
 
@@ -43,7 +43,7 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
       for (idx <- 0 until dimK optimized) {
         A(idx, ::) := A_array(idx).t
       }
-      lambda = AlgebraUtil.colWiseNorm2(A)
+      lambda = norm(A(::, *)).toDenseVector
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
