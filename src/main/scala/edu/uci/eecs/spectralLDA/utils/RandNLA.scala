@@ -166,8 +166,8 @@ object RandNLA {
                                      documents: RDD[(Long, Double, SparseVector[Double])],
                                      q: DenseMatrix[Double]
                                     ): DenseMatrix[Double] = {
-    val para_main: Double = (alpha0 + 1.0) / numDocs.toDouble
-    val para_shift: Double = alpha0
+    val para_main: Double = (alpha0 + 1.0) * alpha0
+    val para_shift: Double = alpha0 * alpha0
 
     val unshiftedM2 = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
     val qBroadcast = documents.sparkContext.broadcast[DenseMatrix[Double]](q)
@@ -182,6 +182,7 @@ object RandNLA {
       .foreach {
         case (token, v) => unshiftedM2(token, ::) := v.t
       }
+    unshiftedM2 /= numDocs.toDouble
     qBroadcast.unpersist
 
     val m2 = unshiftedM2 * para_main - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift

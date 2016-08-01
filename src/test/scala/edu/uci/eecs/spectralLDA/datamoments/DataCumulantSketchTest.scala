@@ -128,8 +128,8 @@ class DataCumulantSketchTest extends FlatSpec with Matchers {
 
     // Compute shifted M2, M3
     val (shiftedM2: DenseMatrix[Double], shiftedM3: DenseMatrix[Double]) = shiftMoments(M1, E_x1_x2, E_x1_x2_x3, alpha0)
-    val scaledShiftedM2 = shiftedM2 * (alpha0 + 1)
-    val scaledShiftedM3 = shiftedM3 * ((alpha0 + 1) * (alpha0 + 2) / 2.0)
+    val scaledShiftedM2 = shiftedM2 * alpha0 * (alpha0 + 1)
+    val scaledShiftedM3 = shiftedM3 * (alpha0 * (alpha0 + 1) * (alpha0 + 2) / 2.0)
 
     // Eigendecomposition of shiftedM2
     val eigSym.EigSym(sigma, u) = eigSym(scaledShiftedM2)

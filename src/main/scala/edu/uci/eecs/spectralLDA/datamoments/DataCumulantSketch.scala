@@ -94,7 +94,7 @@ object DataCumulantSketch {
         .map(_ / numDocs.toDouble).toDenseMatrix
       val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
 
-      val eigSym.EigSym(sigma, u) = eigSym((alpha0 + 1) * M2)
+      val eigSym.EigSym(sigma, u) = eigSym(alpha0 * (alpha0 + 1) * M2)
       val i = argsort(sigma)
       (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)
     }
@@ -193,7 +193,7 @@ object DataCumulantSketch {
     println("Finished calculating third order moments.")
 
     new DataCumulantSketch(
-      fft_sketch_whitened_M3 * Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0),
+      fft_sketch_whitened_M3 * Complex(alpha0 * (alpha0 + 1) * (alpha0 + 2) / 2.0, 0),
       eigenVectors,
       eigenValues
     )

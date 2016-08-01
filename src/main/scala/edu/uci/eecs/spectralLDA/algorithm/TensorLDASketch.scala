@@ -50,7 +50,7 @@ class TensorLDASketch(dimK: Int,
     // unwhitening matrix: $(W^T)^{-1}=U\Sigma^{1/2}$
     val unwhiteningMatrix = cumulantSketch.eigenVectorsM2 * diag(sqrt(cumulantSketch.eigenValuesM2))
 
-    val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2)) * alpha0
+    val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
     val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = unwhiteningMatrix * nu * diag(lambda)
 
     // Diagnostic information: the ratio of the maximum to the minimum of the
