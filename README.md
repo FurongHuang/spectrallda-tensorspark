@@ -26,15 +26,15 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
       -k, --k <value>          number of topics
       -alpha0, --topicConcentration <value>
                                the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
+      -idf, --idfLowerBound <value>
+                               only work on terms with IDF above the lower bound. default: 1.0
+      --M2-cond <value>        stop if the M2 condition number is higher than the given bound. default: 50.0
       -max-iter, --maxIterations <value>
                                number of iterations of learning. default: 200
-      -tol, --tolerance <value>
-                               tolerance. default: 1.0E-9
-      -V, --vocabSize <value>  number of distinct word types to use, ordered by frequency. default: -1
-      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
       --sketching              Tensor decomposition via sketching
       -B, --B <value>          number of hash families for sketching. default: 50
       -b, --b <value>          length of a hash for sketching, preferably to be power of 2. default: 256
+      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
       -o, --outputDir <dir>    output write path. default: .
       --stopWordFile <value>   filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
       --help                   prints this usage text
@@ -45,7 +45,9 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     
     A good choice for `alpha0` is equal to `k` so that we have a non-informative Dirichilet prior for the topic distribution -- any topic distribution is equally likely.
     
-    By default the sketching is turned off, thus we could be constrained by memory when processing large data set. We could specify `--sketching` to do the sketching-based decomposition. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These default values should be good for most scenarios.
+    `--M2-cond` checks the shifted M2 condition number (the ratio of the maximum eigenvalue to the minimum one) and stops if it's above the given bound.
+    
+    We could specify `--sketching` to do the sketching-based decomposition, which is off by default. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These values are a good choice to start with.
     
     The file type `-t` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
     
@@ -83,10 +85,15 @@ val lda = new TensorLDASketch(
   dimK = params.k,
   alpha0 = params.topicConcentration,
   sketcher = sketcher,
-  maxIterations = params.maxIterations,      // optional, default: 200
+  m2ConditionNumberUB = value,               // optional, default: infinity
+  maxIterations = 200,                       // optional, default: 200
   nonNegativeDocumentConcentration = true,   // optional, default: true
   randomisedSVD = true                       // optional, default: true
 )(tolerance = params.tolerance)              // optional, default: 1e-9
+
+// If we want to only work on terms with IDF above a certain bound
+// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
@@ -108,6 +115,10 @@ val lda = new TensorLDA(
   maxIterations = params.maxIterations,  // optional, default 200
   tolerance = params.tolerance           // optional, default 1e-9
 )
+
+// If we want to only work on terms with IDF above a certain bound
+// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
+// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 

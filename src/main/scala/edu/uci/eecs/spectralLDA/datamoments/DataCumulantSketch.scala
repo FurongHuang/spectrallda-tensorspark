@@ -28,14 +28,17 @@ import scala.language.postfixOps
   * @param fftSketchWhitenedM3 FFT of the sketch of whitened M3, multiplied by a coefficient
   *                                i.e \frac{(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)
   *                                      = \sum_{i=1}^k\frac{\alpha_i}{\alpha_0}(W^T\mu_i)^{\otimes 3}
-  * @param unwhiteningMatrix $(W^T)^{-1}=U\Sigma^{1/2}$
+  * @param eigenVectorsM2   V-by-k top eigenvectors of shifted M2, stored column-wise
+  * @param eigenValuesM2    length-k top eigenvalues of shifted M2
   *
   * REFERENCES
   * [Wang2015] Wang Y et al, Fast and Guaranteed Tensor Decomposition via Sketching, 2015,
   *            http://arxiv.org/abs/1506.04448
   *
   */
-case class DataCumulantSketch(fftSketchWhitenedM3: DenseMatrix[Complex], unwhiteningMatrix: DenseMatrix[Double])
+case class DataCumulantSketch(fftSketchWhitenedM3: DenseMatrix[Complex],
+                              eigenVectorsM2: DenseMatrix[Double],
+                              eigenValuesM2: DenseVector[Double])
   extends Serializable
 
 
@@ -44,6 +47,7 @@ object DataCumulantSketch {
                       alpha0: Double,
                       documents: RDD[(Long, SparseVector[Double])],
                       sketcher: TensorSketcher[Double, Double],
+                      m2ConditionNumberUB: Double = Double.PositiveInfinity,
                       randomisedSVD: Boolean = true)
                      (implicit tolerance: Double = 1e-9, randBasis: RandBasis = Rand)
   : DataCumulantSketch = {
@@ -94,8 +98,14 @@ object DataCumulantSketch {
       val i = argsort(sigma)
       (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)
     }
-
     println("Finished calculating second order moments and whitening matrix.")
+
+    val m2ConditionNumber: Double = max(eigenValues) / min(eigenValues)
+    if (m2ConditionNumber > m2ConditionNumberUB) {
+      println(s"ERROR: Shifted M2 top $dimK eigenvalues: $eigenValues")
+      println(s"ERROR: Shifted M2 condition number: $m2ConditionNumber > UB $m2ConditionNumberUB")
+      sys.exit(2)
+    }
 
     println("Start whitening data with dimensionality reduction...")
     val W: DenseMatrix[Double] = eigenVectors * diag(eigenValues map { x => 1 / (sqrt(x) + tolerance) })
@@ -182,9 +192,11 @@ object DataCumulantSketch {
 
     println("Finished calculating third order moments.")
 
-    val unwhiteningMatrix = eigenVectors * diag(sqrt(eigenValues))
-
-    new DataCumulantSketch(fft_sketch_whitened_M3 * Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0), unwhiteningMatrix)
+    new DataCumulantSketch(
+      fft_sketch_whitened_M3 * Complex((alpha0 + 1) * (alpha0 + 2) / 2.0, 0),
+      eigenVectors,
+      eigenValues
+    )
   }
 
   private def whitenedM3FirstOrderTerms(alpha0: Double,

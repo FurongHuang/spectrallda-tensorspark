@@ -17,6 +17,7 @@ import scopt.OptionParser
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import java.io._
+import java.nio.file.{Files, Paths}
 
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
@@ -26,6 +27,8 @@ object SpectralLDA {
                              inputType: String = "obj", // "libsvm", "text" or "obj"
                              k: Int = 1,
                              topicConcentration: Double = 5.0,
+                             idfLowerBound: Double = 1.0,
+                             m2ConditionNumberUB: Double = 50.0,
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
@@ -57,6 +60,21 @@ object SpectralLDA {
           else failure("topicConcentration must be positive.")
         )
 
+      opt[Double]("idfLowerBound").abbr("idf")
+        .text(s"only work on terms with IDF above the lower bound. default: ${defaultParams.idfLowerBound}")
+        .action((x, c) => c.copy(idfLowerBound = x))
+        .validate(x =>
+          if (x >= 1.0) success
+          else failure("idfLowerBound must be at least 1.0.")
+        )
+      opt[Double]("M2-cond")
+        .text(s"stop if the M2 condition number is higher than the given bound. default: ${defaultParams.m2ConditionNumberUB}")
+        .action((x, c) => c.copy(m2ConditionNumberUB = x))
+        .validate(x =>
+          if (x > 0.0) success
+          else failure("M2 condition number upper bound must be positive.")
+        )
+
       opt[Int]("maxIterations").abbr("max-iter")
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
@@ -64,7 +82,7 @@ object SpectralLDA {
           if (x > 0) success
           else failure("maxIterations must be positive.")
         )
-      opt[Double]("tolerance").abbr("tol")
+      opt[Double]("tolerance").abbr("tol").hidden()
         .text(s"tolerance. default: ${defaultParams.tolerance}")
         .action((x, c) => c.copy(tolerance = x))
         .validate(x =>
@@ -72,20 +90,12 @@ object SpectralLDA {
           else failure("tolerance must be positive.")
         )
 
-      opt[Int]('V', "vocabSize")
+      opt[Int]('V', "vocabSize").hidden()
         .text(s"number of distinct word types to use, ordered by frequency. default: ${defaultParams.vocabSize}")
         .action((x, c) => c.copy(vocabSize = x))
         .validate(x =>
           if (x == -1 || x > 0) success
           else failure("vocabSize must be -1 for all or positive."))
-
-      opt[String]('t', "inputType")
-        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
-        .action((x, c) => c.copy(inputType = x))
-        .validate(x =>
-          if (x == "obj" || x == "libsvm" || x == "text") success
-          else failure("""inputType must be "obj", "libsvm" or "text".""")
-        )
 
       opt[Unit]("sketching")
         .text("Tensor decomposition via sketching")
@@ -105,9 +115,20 @@ object SpectralLDA {
           else failure("The length of a hash b for sketching must be positive.")
         )
 
+      opt[String]('t', "inputType")
+        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
+        .action((x, c) => c.copy(inputType = x))
+        .validate(x =>
+          if (x == "obj" || x == "libsvm" || x == "text") success
+          else failure("""inputType must be "obj", "libsvm" or "text".""")
+        )
       opt[String]('o', "outputDir").valueName("<dir>")
         .text(s"output write path. default: ${defaultParams.outputDir}")
         .action((x, c) => c.copy(outputDir = x))
+        .validate(x =>
+          if (Files.exists(Paths.get(x))) success
+          else failure(s"Output directory $x doesn't exist.")
+        )
       opt[String]("stopWordFile")
         .text(s"filepath for a list of stopwords. default: ${defaultParams.stopWordFile}")
         .action((x, c) => c.copy(stopWordFile = x))
@@ -149,7 +170,7 @@ object SpectralLDA {
     println("Generated the SparkConetxt")
 
     println("Start reading data...")
-    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
+    val (rawDocuments: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
       case "libsvm" =>
         TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
       case "text" =>
@@ -157,6 +178,9 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
+
+    val documents = TextProcessor.filterIDF(rawDocuments, params.idfLowerBound)
+
     println("Finished reading data.")
 
     println("Start ALS algorithm for tensor decomposition...")
@@ -171,6 +195,7 @@ object SpectralLDA {
         dimK = params.k,
         alpha0 = params.topicConcentration,
         sketcher = sketcher,
+        m2ConditionNumberUB = params.m2ConditionNumberUB,
         maxIterations = params.maxIterations,
         nonNegativeDocumentConcentration = true,
         randomisedSVD = true

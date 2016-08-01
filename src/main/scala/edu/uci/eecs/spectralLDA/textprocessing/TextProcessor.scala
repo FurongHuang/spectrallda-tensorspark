@@ -1,5 +1,6 @@
 package edu.uci.eecs.spectralLDA.textprocessing
 
+import breeze.linalg.{DenseVector, SparseVector, min}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -145,4 +146,46 @@ object TextProcessor {
                                            numFeatures: Int): RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, numFeatures, sc.defaultMinPartitions)
 
   private def loadLibSVMFile2sparseVector(sc: SparkContext, path: String): RDD[(Long, breeze.linalg.SparseVector[Double])] = loadLibSVMFile2sparseVector(sc, path, -1)
+
+  /** Returns the Inverse Document Frequency
+    *
+    * @param docs the documents RDD
+    * @return     the IDF vector
+    */
+  def inverseDocumentFrequency(docs: RDD[(Long, SparseVector[Double])], approxCount: Boolean = true)
+      : DenseVector[Double] = {
+    val numDocs: Double = if (approxCount)
+      docs.countApprox(30000L).getFinalValue.mean
+    else
+      docs.count.toDouble
+
+    val documentFrequency: SparseVector[Double] = docs
+      .map {
+        case (_, w: SparseVector[Double]) => min(w, 1e-8) map { _ * 1e8 }
+      }
+      .reduce(_ + _)
+    numDocs / documentFrequency.toDenseVector
+  }
+
+  /** Filter out terms whose IDF is lower than the given bound
+    *
+    * @param docs           the documents RDD
+    * @param idfLowerBound  lower bound for the IDF
+    */
+  def filterIDF(docs: RDD[(Long, SparseVector[Double])], idfLowerBound: Double)
+      : RDD[(Long, SparseVector[Double])] = {
+    if (idfLowerBound > 1.0 + 1e-12) {
+      val idf = inverseDocumentFrequency(docs)
+      val invalidTermIndices = (idf :< idfLowerBound).toVector
+      println(s"Ignoring term IDs $invalidTermIndices")
+
+      docs.map {
+        case (id: Long, w: SparseVector[Double]) =>
+          w(invalidTermIndices) := 0.0
+          (id, w)
+      }
+    }
+    else
+      docs
+  }
 }
