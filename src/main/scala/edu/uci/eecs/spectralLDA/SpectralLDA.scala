@@ -213,12 +213,12 @@ object SpectralLDA {
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
-    val numDocs: Long = documents.count()
+    val numDocs: Double = documents.countApprox(30000L).getFinalValue.mean
     val dimVocab: Int = documents.map(_._2.length).take(1)(0)
     sc.stop()
     println()
     println("Corpus summary:")
-    println(s"\t Training set size: $numDocs documents")
+    println(s"\t Training set size: ~$numDocs documents")
     println(s"\t Vocabulary size: $dimVocab terms")
     println(s"\t Model Training time: $preprocessElapsed sec")
     println()
