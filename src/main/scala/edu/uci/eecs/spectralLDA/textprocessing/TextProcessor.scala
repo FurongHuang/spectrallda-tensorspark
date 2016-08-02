@@ -159,12 +159,22 @@ object TextProcessor {
     else
       docs.count.toDouble
 
-    val documentFrequency: SparseVector[Double] = docs
-      .map {
-        case (_, w: SparseVector[Double]) => min(w, 1e-8) map { _ * 1e8 }
+    val vocabSize: Int = docs.map(_._2.length).take(1)(0)
+    val documentFrequency: DenseVector[Double] = DenseVector.zeros[Double](vocabSize)
+
+    docs
+      .flatMap[(Int, Double)] {
+        case (_, w: SparseVector[Double]) =>
+          for ((token, count) <- w.activeIterator)
+            yield (token, if (count > 0.0) 1.0 else 0.0)
       }
-      .reduce(_ + _)
-    numDocs / documentFrequency.toDenseVector
+      .reduceByKey(_ + _)
+      .collect
+      .foreach {
+        case (token, df) => documentFrequency(token) = df
+      }
+
+    numDocs / documentFrequency
   }
 
   /** Filter out terms whose IDF is lower than the given bound
