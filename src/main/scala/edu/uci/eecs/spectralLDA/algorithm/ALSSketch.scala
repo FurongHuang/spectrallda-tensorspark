@@ -5,7 +5,7 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
-import breeze.linalg.{*, DenseMatrix, DenseVector, norm}
+import breeze.linalg.{*, DenseMatrix, DenseVector, max, min, norm}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
@@ -39,6 +39,7 @@ class ALSSketch(dimK: Int,
       // println("Mode A...")
       A = updateALSiteration(fft_sketch_T, B, C, sketcher)
       lambda = norm(A(::, *)).toDenseVector
+      println(s"lambda: max ${max(lambda)}, min ${min(lambda)}")
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
