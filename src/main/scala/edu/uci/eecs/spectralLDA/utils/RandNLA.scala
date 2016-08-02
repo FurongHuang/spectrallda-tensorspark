@@ -40,6 +40,7 @@ object RandNLA {
               numDocs: Long,
               firstOrderMoments: DenseVector[Double],
               documents: RDD[(Long, Double, SparseVector[Double])],
+              termsLowIDF: Seq[Int] = Seq[Int](),
               nIter: Int = 1)
             (implicit randBasis: RandBasis = Rand)
   : (DenseMatrix[Double], DenseVector[Double]) = {
@@ -60,7 +61,8 @@ object RandNLA {
         numDocs,
         firstOrderMoments,
         documents,
-        q
+        q,
+        termsLowIDF
       )
       val QR(nextq, _) = qr.reduced(m2q)
       q = nextq
@@ -74,7 +76,8 @@ object RandNLA {
       numDocs,
       firstOrderMoments,
       documents,
-      q
+      q,
+      termsLowIDF
     )
 
     // Randomised eigendecomposition of M2
@@ -164,13 +167,18 @@ object RandNLA {
                                      numDocs: Long,
                                      firstOrderMoments: DenseVector[Double],
                                      documents: RDD[(Long, Double, SparseVector[Double])],
-                                     q: DenseMatrix[Double]
+                                     q: DenseMatrix[Double],
+                                     termsLowIDF: Seq[Int] = Seq[Int]()
                                     ): DenseMatrix[Double] = {
     val para_main: Double = (alpha0 + 1.0) * alpha0
     val para_shift: Double = alpha0 * alpha0
 
-    val unshiftedM2 = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
+    firstOrderMoments(termsLowIDF) := 0.0
+    q(termsLowIDF, ::) := 0.0
+
     val qBroadcast = documents.sparkContext.broadcast[DenseMatrix[Double]](q)
+
+    val unshiftedM2 = DenseMatrix.zeros[Double](vocabSize, dimK + slackDimK)
     documents
       .flatMap {
         doc => accumulate_M_mul_S(
@@ -183,6 +191,8 @@ object RandNLA {
         case (token, v) => unshiftedM2(token, ::) := v.t
       }
     unshiftedM2 /= numDocs.toDouble
+    unshiftedM2(termsLowIDF, ::) := 0.0
+
     qBroadcast.unpersist
 
     val m2 = unshiftedM2 * para_main - (firstOrderMoments * (firstOrderMoments.t * q)) * para_shift

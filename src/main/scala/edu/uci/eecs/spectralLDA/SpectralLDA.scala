@@ -170,7 +170,7 @@ object SpectralLDA {
     println("Generated the SparkConetxt")
 
     println("Start reading data...")
-    val (rawDocuments: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
+    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
       case "libsvm" =>
         TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
       case "text" =>
@@ -178,8 +178,6 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
-
-    val documents = TextProcessor.filterIDF(rawDocuments, params.idfLowerBound)
 
     println("Finished reading data.")
 
@@ -195,6 +193,7 @@ object SpectralLDA {
         dimK = params.k,
         alpha0 = params.topicConcentration,
         sketcher = sketcher,
+        idfLowerBound = params.idfLowerBound,
         m2ConditionNumberUB = params.m2ConditionNumberUB,
         maxIterations = params.maxIterations,
         nonNegativeDocumentConcentration = true,

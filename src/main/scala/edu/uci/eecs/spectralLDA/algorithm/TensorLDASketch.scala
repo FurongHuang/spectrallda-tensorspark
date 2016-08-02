@@ -16,6 +16,7 @@ class TensorLDASketch(dimK: Int,
                       alpha0: Double,
                       maxIterations: Int = 200,
                       sketcher: TensorSketcher[Double, Double],
+                      idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
                       randomisedSVD: Boolean = true,
                       nonNegativeDocumentConcentration: Boolean = true)
@@ -33,6 +34,7 @@ class TensorLDASketch(dimK: Int,
       dimK, alpha0,
       documents,
       sketcher,
+      idfLowerBound = idfLowerBound,
       m2ConditionNumberUB = m2ConditionNumberUB,
       randomisedSVD = randomisedSVD
     )

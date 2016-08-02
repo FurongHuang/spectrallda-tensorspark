@@ -11,6 +11,7 @@ import breeze.numerics.sqrt
 import breeze.signal.fourierTr
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
+import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
@@ -47,11 +48,15 @@ object DataCumulantSketch {
                       alpha0: Double,
                       documents: RDD[(Long, SparseVector[Double])],
                       sketcher: TensorSketcher[Double, Double],
+                      idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
                       randomisedSVD: Boolean = true)
                      (implicit tolerance: Double = 1e-9, randBasis: RandBasis = Rand)
   : DataCumulantSketch = {
     val sc: SparkContext = documents.sparkContext
+
+    val idf: DenseVector[Double] = TextProcessor.inverseDocumentFrequency(documents)
+    val termsLowIDF: Seq[Int] = idf.findAll(_ <= idfLowerBound - 1e-12)
 
     val validDocuments = documents
       .map {
@@ -62,7 +67,7 @@ object DataCumulantSketch {
       }
     validDocuments.cache()
 
-    val dimVocab = validDocuments.take(1)(0)._3.length
+    val dimVocab = validDocuments.map(_._3.length).take(1)(0)
     val numDocs = validDocuments.count()
 
     println("Start calculating first order moments...")
@@ -72,6 +77,8 @@ object DataCumulantSketch {
       }
       .reduce(_ + _)
       .map(_ / numDocs.toDouble).toDenseVector
+    // Zero out the terms with low IDF
+    firstOrderMoments(termsLowIDF) := 0.0
     println("Finished calculating first order moments.")
 
     println("Start calculating second order moments...")
@@ -82,7 +89,8 @@ object DataCumulantSketch {
         dimK,
         numDocs,
         firstOrderMoments,
-        validDocuments
+        validDocuments,
+        termsLowIDF
       )
     }
     else {
@@ -93,6 +101,8 @@ object DataCumulantSketch {
         .reduce(_ + _)
         .map(_ / numDocs.toDouble).toDenseMatrix
       val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+      M2(termsLowIDF, ::) := 0.0
+      M2(::, termsLowIDF) := 0.0
 
       val eigSym.EigSym(sigma, u) = eigSym(alpha0 * (alpha0 + 1) * M2)
       val i = argsort(sigma)
