@@ -4,8 +4,8 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Tensor Decomposition Algorithms.
   * Alternating Least Square algorithm is implemented.
   */
-import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
-import breeze.linalg.{*, DenseMatrix, DenseVector, max, min, norm}
+import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
+import breeze.linalg.{*, DenseMatrix, DenseVector, max, min, norm, pinv}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
@@ -14,6 +14,23 @@ import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
 import scala.language.postfixOps
 
+/** Sketched tensor decomposition by Alternating Least Square (ALS)
+  *
+  * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
+  *
+  *    T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i
+  *
+  * If we pool all the column vectors \lambda_i a_i in A, b_i in B, c_i in C, then
+  *
+  *    T^{1} = A (C \khatri-rao product B)^{\top}
+  *
+  * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
+  *
+  * @param dimK          tensor T is of shape dimK-by-dimK-by-dimK
+  * @param fft_sketch_T  FFT of sketched tensor T
+  * @param sketcher      the sketching facility
+  * @param maxIterations max iterations for the ALS algorithm
+  */
 class ALSSketch(dimK: Int,
                 fft_sketch_T: DenseMatrix[Complex],
                 sketcher: TensorSketcher[Double, Double],
@@ -57,7 +74,7 @@ class ALSSketch(dimK: Int,
     (A, lambda)
   }
 
-  private def updateALSiteration(fft_sketch_T: DenseMatrix[Complex],
+  def updateALSiteration(fft_sketch_T: DenseMatrix[Complex],
                                  B: DenseMatrix[Double],
                                  C: DenseMatrix[Double],
                                  sketcher: TensorSketcher[Double, Double])
@@ -71,6 +88,79 @@ class ALSSketch(dimK: Int,
     // T * (C katri-rao dot B) * pinv((C^T C) :* (B^T B))
     // i.e T * pinv((C katri-rao dot B)^T)
     TIBC * Inverted
+  }
+}
+
+/** Non-negative sketched tensor decomposition by Alternating Least Square (ALS)
+  *
+  * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
+  *
+  *    T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i
+  *
+  * If we pool all the column vectors \lambda_i a_i in A, b_i in B, c_i in C, then
+  *
+  *    T^{1} = A (C \khatri-rao product B)^{\top}
+  *
+  * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
+  *
+  * Furthermore, given a V-by-dimK matrix H, the solution will satisfy
+  *
+  *    Ha_i >= 0, Hb_i >= 0, Hc_i >= 0, and Ha_i, Hb_i, Hc_i sum up to 1, \forall i\in [1,dimK].
+  *
+  * @param dimK          tensor T is of shape dimK-by-dimK-by-dimK
+  * @param fft_sketch_T  FFT of sketched tensor T
+  * @param sketcher      the sketching facility
+  * @param h             matrix H
+  * @param maxIterations max iterations for the ALS algorithm
+  */
+class NNALSSketch(dimK: Int,
+                  fft_sketch_T: DenseMatrix[Complex],
+                  sketcher: TensorSketcher[Double, Double],
+                  h: DenseMatrix[Double],
+                  maxIterations: Int = 200
+                 )
+  extends ALSSketch(dimK, fft_sketch_T, sketcher, maxIterations) {
+
+  override def run(implicit randBasis: RandBasis)
+      : (DenseMatrix[Double], DenseVector[Double]) = {
+    val hInv = pinv(h.t * h) * h.t
+
+    val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
+    var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    var C: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+
+    var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
+    var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
+    var iter: Int = 0
+
+    println("Start ALS iterations...")
+
+    while ((iter == 0) || ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A))) {
+      A_prev = A.copy
+
+      // println("Mode A...")
+      val refA = updateALSiteration(fft_sketch_T, B, C, sketcher)
+      A = hInv * NonNegativeAdjustment.simplexProj_Matrix(h * refA)
+      lambda = norm(A(::, *)).toDenseVector
+      println(s"lambda: max ${max(lambda)}, min ${min(lambda)}")
+      A = AlgebraUtil.matrixNormalization(A)
+
+      // println("Mode B...")
+      val refB = updateALSiteration(fft_sketch_T, C, A, sketcher)
+      B = hInv * NonNegativeAdjustment.simplexProj_Matrix(h * refB)
+      B = AlgebraUtil.matrixNormalization(B)
+
+      // println("Mode C...")
+      val refC = updateALSiteration(fft_sketch_T, A, B, sketcher)
+      C = hInv * NonNegativeAdjustment.simplexProj_Matrix(h * refC)
+      C = AlgebraUtil.matrixNormalization(C)
+
+      iter += 1
+    }
+    println("Finished ALS iterations.")
+
+    (A, lambda)
   }
 }
 

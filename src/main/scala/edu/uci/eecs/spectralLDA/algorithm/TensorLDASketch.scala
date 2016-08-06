@@ -9,7 +9,6 @@ import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, diag, max
 import breeze.numerics._
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
-import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 import org.apache.spark.rdd.RDD
 
 class TensorLDASketch(dimK: Int,
@@ -18,8 +17,8 @@ class TensorLDASketch(dimK: Int,
                       sketcher: TensorSketcher[Double, Double],
                       idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
-                      randomisedSVD: Boolean = true,
-                      nonNegativeDocumentConcentration: Boolean = true)
+                      randomisedSVD: Boolean = true
+                     )
                      (implicit tolerance: Double = 1e-9)
   extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
@@ -39,10 +38,11 @@ class TensorLDASketch(dimK: Int,
       randomisedSVD = randomisedSVD
     )
 
-    val myALS: ALSSketch = new ALSSketch(
+    val myALS: ALSSketch = new NNALSSketch(
       dimK,
       cumulantSketch.fftSketchWhitenedM3,
       sketcher,
+      cumulantSketch.eigenVectorsM2 * diag(sqrt(cumulantSketch.eigenValuesM2)),
       maxIterations = maxIterations
     )
 
@@ -73,13 +73,6 @@ class TensorLDASketch(dimK: Int,
             "output reasonable results. It could be due to the existence of very frequent words " +
             "across the documents or that the specified k is larger than the true number of topics.")
 
-    // non-negativity adjustment for the word distributions per topic
-    if (nonNegativeDocumentConcentration) {
-      val topicWordMatrix_normed = NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix)
-      (topicWordMatrix_normed, alpha)
-    }
-    else {
-      (topicWordMatrix, alpha)
-    }
+    (topicWordMatrix, alpha)
   }
 }

@@ -8,14 +8,10 @@ import scala.language.postfixOps
 
 object NonNegativeAdjustment {
   def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
-    val M_onSimplex: DenseMatrix[Double] = DenseMatrix.zeros[Double](M.rows, M.cols)
+    val M_onSimplex = DenseMatrix.zeros[Double](M.rows, M.cols)
     for(i <- 0 until M.cols optimized){
-      val thisColumn = M(::,i)
-
-      val (tmp1, theta1) = simplexProj(thisColumn)
-      val (tmp2, theta2) = simplexProj(-thisColumn)
-
-      M_onSimplex(::, i) := (if (theta1 > theta2) tmp1 else tmp2)
+      val (projectedVector, _) = simplexProj(M(::, i))
+      M_onSimplex(::, i) := projectedVector
     }
 
     M_onSimplex

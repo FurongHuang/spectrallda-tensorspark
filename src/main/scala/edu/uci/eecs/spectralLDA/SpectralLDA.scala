@@ -196,7 +196,6 @@ object SpectralLDA {
         idfLowerBound = params.idfLowerBound,
         m2ConditionNumberUB = params.m2ConditionNumberUB,
         maxIterations = params.maxIterations,
-        nonNegativeDocumentConcentration = true,
         randomisedSVD = true
       )(tolerance = params.tolerance)
       lda.fit(documents)
