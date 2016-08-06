@@ -9,6 +9,7 @@ import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, diag, max
 import breeze.numerics._
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
+import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 import org.apache.spark.rdd.RDD
 
 class TensorLDASketch(dimK: Int,
@@ -73,6 +74,6 @@ class TensorLDASketch(dimK: Int,
             "output reasonable results. It could be due to the existence of very frequent words " +
             "across the documents or that the specified k is larger than the true number of topics.")
 
-    (topicWordMatrix, alpha)
+    (NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix), alpha)
   }
 }
