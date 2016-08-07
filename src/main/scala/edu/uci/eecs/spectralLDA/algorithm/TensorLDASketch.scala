@@ -43,7 +43,8 @@ class TensorLDASketch(dimK: Int,
       dimK,
       cumulantSketch.fftSketchWhitenedM3,
       sketcher,
-      cumulantSketch.eigenVectorsM2 * diag(sqrt(cumulantSketch.eigenValuesM2)),
+      cumulantSketch.eigenVectorsM2,
+      cumulantSketch.eigenValuesM2,
       maxIterations = maxIterations
     )
 

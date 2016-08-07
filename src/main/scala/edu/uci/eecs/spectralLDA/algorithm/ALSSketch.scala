@@ -5,9 +5,10 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
-import breeze.linalg.{*, DenseMatrix, DenseVector, max, min, norm, pinv}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
+import breeze.numerics._
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
@@ -103,27 +104,30 @@ class ALSSketch(dimK: Int,
   *
   * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
   *
-  * Furthermore, given a V-by-dimK matrix H, the solution will satisfy
+  * Furthermore, given a V-by-dimK unwhitening matrix H, the solution will satisfy
   *
   *    Ha_i >= 0, Hb_i >= 0, Hc_i >= 0, and Ha_i, Hb_i, Hc_i sum up to 1, \forall i\in [1,dimK].
   *
-  * @param dimK          tensor T is of shape dimK-by-dimK-by-dimK
-  * @param fft_sketch_T  FFT of sketched tensor T
-  * @param sketcher      the sketching facility
-  * @param h             matrix H
-  * @param maxIterations max iterations for the ALS algorithm
+  * @param dimK            tensor T is of shape dimK-by-dimK-by-dimK
+  * @param fft_sketch_T    FFT of sketched tensor T
+  * @param sketcher        the sketching facility
+  * @param eigenVectorsM2  eigenvectors of M2
+  * @param eigenValuesM2   eigenvalues of M2
+  * @param maxIterations   max iterations for the ALS algorithm
   */
 class NNALSSketch(dimK: Int,
                   fft_sketch_T: DenseMatrix[Complex],
                   sketcher: TensorSketcher[Double, Double],
-                  h: DenseMatrix[Double],
+                  eigenVectorsM2: DenseMatrix[Double],
+                  eigenValuesM2: DenseVector[Double],
                   maxIterations: Int = 200
                  )
   extends ALSSketch(dimK, fft_sketch_T, sketcher, maxIterations) {
 
   override def run(implicit randBasis: RandBasis)
       : (DenseMatrix[Double], DenseVector[Double]) = {
-    val hInv = pinv(h.t * h) * h.t
+    val h = eigenVectorsM2 * diag(sqrt(eigenValuesM2))
+    val hInv = diag(1.0 / sqrt(eigenValuesM2)) * eigenVectorsM2.t
 
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
     var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
