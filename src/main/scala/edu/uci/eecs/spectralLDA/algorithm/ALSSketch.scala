@@ -5,7 +5,7 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv, sum}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.numerics._
@@ -146,6 +146,7 @@ class NNALSSketch(dimK: Int,
       // println("Mode A...")
       val refA = updateALSiteration(fft_sketch_T, B, C, sketcher)
       A = hInv * NonNegativeAdjustment.simplexProj_Matrix(h * refA)
+      println(s"sum(HA) ${sum(h * A)}\tmin(HA) ${min(h * A)}")
       lambda = norm(A(::, *)).toDenseVector
       println(s"lambda: max ${max(lambda)}, min ${min(lambda)}")
       A = AlgebraUtil.matrixNormalization(A)

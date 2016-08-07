@@ -81,7 +81,11 @@ object AlgebraUtil {
     val numerator: Double = breeze.linalg.norm(newA.toDenseVector - oldA.toDenseVector)
     val denominator: Double = breeze.linalg.norm(newA.toDenseVector)
     val delta: Double = numerator / denominator
-    delta < TOLERANCE
+
+    val dprod = diag(oldA.t * newA)
+    println(s"delta: $delta\tdot: ${diag(oldA.t * newA)}")
+    //delta < TOLERANCE
+    all(dprod :> 0.99)
   }
 
   def Cumsum(xs: Array[Double]): Array[Double] = {
