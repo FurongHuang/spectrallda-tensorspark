@@ -85,15 +85,11 @@ val lda = new TensorLDASketch(
   dimK = params.k,
   alpha0 = params.topicConcentration,
   sketcher = sketcher,
+  idfLowerBound = value,                     // optional, default: 1.0
   m2ConditionNumberUB = value,               // optional, default: infinity
   maxIterations = 200,                       // optional, default: 200
-  nonNegativeDocumentConcentration = true,   // optional, default: true
   randomisedSVD = true                       // optional, default: true
 )(tolerance = params.tolerance)              // optional, default: 1e-9
-
-// If we want to only work on terms with IDF above a certain bound
-// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
