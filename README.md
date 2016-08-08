@@ -150,7 +150,7 @@ Now if we run the above experiments again, any "WARN BLAS" or "WARN LAPACK" mess
 ### I have millions of small text files...
 If we open them simply via `sc.wholeTextFiles()` the system will spend forever long time querying the file system for the list of all the file names. The solution is to first combine them in Hadoop SequenceFiles of `RDD[(String, String)]`, then process them into word count vectors and vocabulary array.
 
-1. We provided `edu.uci.eecs.spectralLDA.textprocessing.CombineSmallTextFiles` to squash many text files into a Hadoop SequenceFile. For example, all the Wikipedia articles are extracted under `wikitext/0` to `wikitext/9999`, with each subdirectory containing thousands of text files.
+1. We provided `edu.uci.eecs.spectralLDA.textprocessing.CombineSmallTextFiles` to squash many text files into a Hadoop SequenceFile. As an example, if all the Wikipedia articles are extracted under `wikitext/0` to `wikitext/9999`, with thousands of text files under each subdirectory, we could batch combining them into a series of SequenceFiles.
 
     ```bash
     # Under wikitext/, first list all the subdirectory names,
@@ -160,18 +160,17 @@ If we open them simply via `sc.wholeTextFiles()` the system will spend forever l
     target/scala-2.11/spectrallda-tensor_2.11-1.0.jar
     ```
     
-    When the loop finishes, we'd find many `*.obj` Hadoop SequenceFiles under `wikitext/`.
+    When the loop finishes, we'd find a number of `*.obj` Hadoop SequenceFiles under `wikitext/`.
     
-2. Within `sbt console`, we process the SequenceFiles into word count vectors `RDD[(Long, SparseVector[Double])]` and dictionary array, and save them. 
+2. Launch `spark-shell` with the proper server and memory settings, and the option `--jars target/scala-2.11/spectrallda-tensor_2.11-1.0.jar`. 
+
+   We process the SequenceFiles into word count vectors `RDD[(Long, SparseVector[Double])]` and dictionary array, and save them. 
 
     ```scala
-    import org.apache.spark.{SparkConf, SparkContext}
     import org.apache.spark.rdd.RDD
     import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-    val conf = new SparkConf().setAppName("Word Count")
-    val sc = new SparkContext(conf)
     val (docs, dictionary) = TextProcessor.processDocumentsRDD(
-      sc.objectFile("wikitext/*.obj"),
+      sc.objectFile[(String, String)]("wikitext/*.obj"),
       stopwordFile = "src/main/resources/Data/datasets/StopWords_common.txt",
       vocabSize = <vocabSize>
     )
