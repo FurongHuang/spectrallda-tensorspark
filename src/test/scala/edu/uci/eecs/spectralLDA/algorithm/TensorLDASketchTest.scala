@@ -67,7 +67,6 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       alpha0 = sum(alpha),
       sketcher = sketcher,
       maxIterations = 200,
-      nonNegativeDocumentConcentration = true,
       randomisedSVD = false
     )
 
@@ -138,7 +137,6 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       alpha0 = sum(alpha(0 until dimK)),
       sketcher = sketcher,
       maxIterations = 200,
-      nonNegativeDocumentConcentration = true,
       randomisedSVD = true
     )
 

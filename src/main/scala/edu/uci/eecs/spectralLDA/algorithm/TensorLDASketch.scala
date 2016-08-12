@@ -5,7 +5,7 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import edu.uci.eecs.spectralLDA.datamoments.DataCumulantSketch
-import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, diag, max, min}
+import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, argtopk, diag, max, min}
 import breeze.numerics._
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
@@ -16,9 +16,10 @@ class TensorLDASketch(dimK: Int,
                       alpha0: Double,
                       maxIterations: Int = 200,
                       sketcher: TensorSketcher[Double, Double],
+                      idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
-                      randomisedSVD: Boolean = true,
-                      nonNegativeDocumentConcentration: Boolean = true)
+                      randomisedSVD: Boolean = true
+                     )
                      (implicit tolerance: Double = 1e-9)
   extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
@@ -33,14 +34,17 @@ class TensorLDASketch(dimK: Int,
       dimK, alpha0,
       documents,
       sketcher,
+      idfLowerBound = idfLowerBound,
       m2ConditionNumberUB = m2ConditionNumberUB,
       randomisedSVD = randomisedSVD
     )
 
-    val myALS: ALSSketch = new ALSSketch(
+    val myALS: ALSSketch = new NNALSSketch(
       dimK,
       cumulantSketch.fftSketchWhitenedM3,
       sketcher,
+      cumulantSketch.eigenVectorsM2,
+      cumulantSketch.eigenValuesM2,
       maxIterations = maxIterations
     )
 
@@ -50,8 +54,13 @@ class TensorLDASketch(dimK: Int,
     // unwhitening matrix: $(W^T)^{-1}=U\Sigma^{1/2}$
     val unwhiteningMatrix = cumulantSketch.eigenVectorsM2 * diag(sqrt(cumulantSketch.eigenValuesM2))
 
-    val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2)) * alpha0
-    val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = unwhiteningMatrix * nu * diag(lambda)
+    val alphaUnordered: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
+    val topicWordMatrixUnordered: DenseMatrix[Double] = unwhiteningMatrix * nu * diag(lambda)
+
+    // re-arrange alpha and topicWordMatrix in descending order of alpha
+    val idx = argtopk(alphaUnordered, dimK)
+    val alpha = alphaUnordered(idx).toDenseVector
+    val topicWordMatrix = topicWordMatrixUnordered(::, idx).toDenseMatrix
 
     // Diagnostic information: the ratio of the maximum to the minimum of the
     // top k eigenvalues of shifted M2
@@ -66,13 +75,6 @@ class TensorLDASketch(dimK: Int,
             "output reasonable results. It could be due to the existence of very frequent words " +
             "across the documents or that the specified k is larger than the true number of topics.")
 
-    // non-negativity adjustment for the word distributions per topic
-    if (nonNegativeDocumentConcentration) {
-      val topicWordMatrix_normed = NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix)
-      (topicWordMatrix_normed, alpha)
-    }
-    else {
-      (topicWordMatrix, alpha)
-    }
+    (NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix), alpha)
   }
 }

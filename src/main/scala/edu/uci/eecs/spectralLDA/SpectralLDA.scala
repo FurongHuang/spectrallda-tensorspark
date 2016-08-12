@@ -170,7 +170,7 @@ object SpectralLDA {
     println("Generated the SparkConetxt")
 
     println("Start reading data...")
-    val (rawDocuments: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
+    val (documents: RDD[(Long, SparseVector[Double])], vocabArray: Array[String]) = params.inputType match {
       case "libsvm" =>
         TextProcessor.processDocuments_libsvm(sc, params.input.mkString(","), params.vocabSize)
       case "text" =>
@@ -178,8 +178,6 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
-
-    val documents = TextProcessor.filterIDF(rawDocuments, params.idfLowerBound)
 
     println("Finished reading data.")
 
@@ -195,9 +193,9 @@ object SpectralLDA {
         dimK = params.k,
         alpha0 = params.topicConcentration,
         sketcher = sketcher,
+        idfLowerBound = params.idfLowerBound,
         m2ConditionNumberUB = params.m2ConditionNumberUB,
         maxIterations = params.maxIterations,
-        nonNegativeDocumentConcentration = true,
         randomisedSVD = true
       )(tolerance = params.tolerance)
       lda.fit(documents)
@@ -214,12 +212,12 @@ object SpectralLDA {
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9
-    val numDocs: Long = documents.count()
+    val numDocs: Double = documents.countApprox(30000L).getFinalValue.mean
     val dimVocab: Int = documents.map(_._2.length).take(1)(0)
     sc.stop()
     println()
     println("Corpus summary:")
-    println(s"\t Training set size: $numDocs documents")
+    println(s"\t Training set size: ~$numDocs documents")
     println(s"\t Vocabulary size: $dimVocab terms")
     println(s"\t Model Training time: $preprocessElapsed sec")
     println()
