@@ -28,7 +28,6 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
   /** compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
   def logLikelihood(docs: RDD[(Long, SparseVector[Double])],
                     maxIterationsEM: Int = 3)
-                   (implicit randBasis: RandBasis = Rand)
       : Double = {
     docs
       .map {
@@ -45,15 +44,20 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
     var prior = alpha.copy
     var topicDistributionSample: DenseVector[Double] = null
 
+    var latentTopicAttribution: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
+    var wordCountsPerTopic: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
+
     for (i <- 0 until maxIterationsEM) {
       topicDistributionSample = new Dirichlet(prior).sample()
       // println(s"prior $prior, sample $topicDistributionSample")
 
       val expectedWordCounts: DenseVector[Double] = beta * topicDistributionSample
-      val latentTopicAttribution: DenseMatrix[Double] =
-        diag(1.0 / expectedWordCounts) * (beta * diag(topicDistributionSample))
 
-      val wordCountsPerTopic = diag(wordCounts) * latentTopicAttribution
+      for (j <- 0 until k) {
+        latentTopicAttribution(::, j) := beta(::, j) * topicDistributionSample(j) / expectedWordCounts
+        wordCountsPerTopic(::, j) := wordCounts :* latentTopicAttribution(::, j)
+      }
+
       val priorIncrement: DenseVector[Double] = sum(wordCountsPerTopic(::, *)).toDenseVector
       assert(abs(sum(priorIncrement) - sum(wordCounts)) <= 1e-6)
 
