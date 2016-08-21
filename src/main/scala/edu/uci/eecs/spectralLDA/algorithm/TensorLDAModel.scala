@@ -1,30 +1,46 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, all, diag, sum}
+import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, norm, sum}
 import breeze.numerics.{abs, lgamma, log}
-import breeze.stats.distributions.Dirichlet
+import breeze.stats.distributions.{Dirichlet, Rand, RandBasis}
 import org.apache.spark.rdd.RDD
 
 
-class TensorLDAModel(val beta: DenseMatrix[Double],
+class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
                      val alpha: DenseVector[Double])
+                    (implicit smoothing: Double = 0.01)
     extends Serializable {
+
+  assert(topicWordDistribution.cols == alpha.length)
+  assert(topicWordDistribution.forall(_ > - 1e-12))
+  assert(alpha.forall(_ > 1e-10))
+
+  private val k = alpha.length
+  private val vocabSize = topicWordDistribution.rows
+
+  // smoothing so that beta is positive
+  val beta = topicWordDistribution * (1 - smoothing)
+    + smoothing / vocabSize * DenseMatrix.ones[Double](vocabSize, k)
+
+  assert(sum(beta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
+  assert(beta.forall(_ > 1e-10))
+
   /** compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
   def logLikelihood(docs: RDD[(Long, SparseVector[Double])],
-                    maxIterationsEM: Int = 3,
-                    lowerBound: Double = Double.NegativeInfinity)
+                    maxIterationsEM: Int = 3)
+                   (implicit randBasis: RandBasis = Rand)
       : Double = {
     docs
       .map {
         case (id: Long, wordCounts: SparseVector[Double]) =>
           val topicDistribution: DenseVector[Double] = inferEM(wordCounts, maxIterationsEM)
-          val ll = TensorLDAModel.multinomialLogLikelihood(beta * topicDistribution, wordCounts)
-          Math.max(lowerBound, ll)
+          TensorLDAModel.multinomialLogLikelihood(beta * topicDistribution, wordCounts)
       }
       .sum
   }
 
   def inferEM(wordCounts: SparseVector[Double], maxIterationsEM: Int)
+             (implicit randBasis: RandBasis = Rand)
       : DenseVector[Double] = {
     var prior = alpha.copy
     var topicDistributionSample: DenseVector[Double] = null
