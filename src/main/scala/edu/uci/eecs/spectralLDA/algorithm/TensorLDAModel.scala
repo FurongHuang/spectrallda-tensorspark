@@ -59,7 +59,7 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
       }
 
       val priorIncrement: DenseVector[Double] = sum(wordCountsPerTopic(::, *)).toDenseVector
-      assert(abs(sum(priorIncrement) - sum(wordCounts)) <= 1e-6)
+      // assert(abs(sum(priorIncrement) - sum(wordCounts)) <= 1e-6)
 
       prior += priorIncrement
     }
