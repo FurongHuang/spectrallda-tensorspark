@@ -74,8 +74,8 @@ private[algorithm] object TensorLDAModel {
                                x: Vector[Double])
       : Double = {
     assert(p.length == x.length)
-    assert(p forall(_ >= 0.0))
-    assert(x forall(_ >= 0.0))
+    assert(p forall(_ > - 1e-12))
+    assert(x forall(_ > - 1e-12))
 
     val coeff: Double = lgamma(sum(x) + 1) - sum(x.map(a => lgamma(a + 1)))
     coeff + sum(x :* log(p))
