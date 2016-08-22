@@ -70,7 +70,7 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       randomisedSVD = false
     )
 
-    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double]) = tensorLDA.fit(documentsRDD)
+    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _) = tensorLDA.fit(documentsRDD)
 
     // Rearrange the elements/columns of fitted_alpha and fitted_beta
     // to the order of initial alpha and beta
@@ -140,7 +140,7 @@ class TensorLDASketchTest extends FlatSpec with Matchers {
       randomisedSVD = true
     )
 
-    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double]) = tensorLDA.fit(documentsRDD)
+    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _) = tensorLDA.fit(documentsRDD)
 
     // Rearrange the elements/columns of fitted_alpha and fitted_beta
     // to the order of initial alpha and beta

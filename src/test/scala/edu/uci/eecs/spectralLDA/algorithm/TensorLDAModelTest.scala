@@ -29,10 +29,11 @@ class TensorLDAModelTest extends FlatSpec with Matchers {
     val wordCounts1 = SparseVector[Double](70, 20, 10, 0, 0)
     val wordCounts2 = SparseVector[Double](10, 20, 70, 10, 20)
 
-    val ldaModel = new TensorLDAModel(beta, alpha)(smoothing = 0.0)
+    val ldaModel = new TensorLDAModel(beta, alpha,
+      DenseMatrix.eye[Double](5), DenseVector.ones[Double](5))(smoothing = 0.0)
 
-    val topicDistribution1 = ldaModel.inferEM(wordCounts1, maxIterationsEM = 20)
-    val topicDistribution2 = ldaModel.inferEM(wordCounts2, maxIterationsEM = 20)
+    val topicDistribution1 = ldaModel.inferTopicDistribution(ldaModel.smoothedBeta, wordCounts1, maxIterationsEM = 20)
+    val topicDistribution2 = ldaModel.inferTopicDistribution(ldaModel.smoothedBeta, wordCounts2, maxIterationsEM = 20)
 
     val expectedTopicDistribution1 = DenseVector[Double](0.7, 0.2, 0.1)
     val expectedTopicDistribution2 = DenseVector[Double](0.1, 0.7, 0.2)
