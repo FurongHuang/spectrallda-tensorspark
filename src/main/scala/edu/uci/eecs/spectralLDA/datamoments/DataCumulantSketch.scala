@@ -128,8 +128,8 @@ object DataCumulantSketch {
 
     val firstOrderMoments_whitened = W.t * firstOrderMoments
 
-    val broadcasted_W = sc.broadcast(W)
-    val broadcasted_sketcher = sc.broadcast(sketcher)
+    val broadcasted_W = sc.broadcast[DenseMatrix[Double]](W)
+    val broadcasted_sketcher = sc.broadcast[TensorSketcher[Double, Double]](sketcher)
 
     // First order terms: p^{\otimes 3}, p\otimes p\otimes q, p\otimes q\otimes p,
     // q\otimes p\otimes p
