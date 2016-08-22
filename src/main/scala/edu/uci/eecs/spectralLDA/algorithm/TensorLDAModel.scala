@@ -38,33 +38,57 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
       .sum
   }
 
+  /** compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
+  def logLikelihoodV2(docs: RDD[(Long, SparseVector[Double])],
+                      maxIterationsEM: Int = 3)
+      : Double = {
+    var state = docs.map {
+      case (id: Long, wordCounts: SparseVector[Double]) => (id, wordCounts, alpha)
+    }
+
+    for (i <- 0 until maxIterationsEM) {
+      val updatedState = state.map {
+        case (id, wordCounts, topicDistributionPrior) =>
+          (id, wordCounts, stepEM(topicDistributionPrior, wordCounts))
+      }
+      state = updatedState
+    }
+
+    state
+      .map {
+        case (id, wordCounts, topicDistributionPrior) =>
+          val topicDistribution = new Dirichlet(topicDistributionPrior).sample()
+          TensorLDAModel.multinomialLogLikelihood(beta * topicDistribution, wordCounts)
+      }
+      .sum
+  }
+
+  /** Update the topic distribution prior by EM */
+  def stepEM(prior: DenseVector[Double], wordCounts: SparseVector[Double])
+            (implicit randBasis: RandBasis = Rand)
+      : DenseVector[Double] = {
+    val topicDistributionSample: DenseVector[Double] = new Dirichlet(prior).sample()
+
+    val expectedWordCounts: DenseVector[Double] = beta * topicDistributionSample
+    val priorIncrement: Seq[Double] = for {
+      j <- 0 until k
+      latentTopicAttribution = beta(::, j) * topicDistributionSample(j) / expectedWordCounts
+      wordCountsCurrentTopic = wordCounts :* latentTopicAttribution
+    } yield sum(wordCountsCurrentTopic)
+
+    prior + DenseVector[Double](priorIncrement: _*)
+  }
+
   def inferEM(wordCounts: SparseVector[Double], maxIterationsEM: Int)
              (implicit randBasis: RandBasis = Rand)
       : DenseVector[Double] = {
     var prior = alpha.copy
-    var topicDistributionSample: DenseVector[Double] = null
-
-    var latentTopicAttribution: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
-    var wordCountsPerTopic: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
-
     for (i <- 0 until maxIterationsEM) {
-      topicDistributionSample = new Dirichlet(prior).sample()
-      // println(s"prior $prior, sample $topicDistributionSample")
-
-      val expectedWordCounts: DenseVector[Double] = beta * topicDistributionSample
-
-      for (j <- 0 until k) {
-        latentTopicAttribution(::, j) := beta(::, j) * topicDistributionSample(j) / expectedWordCounts
-        wordCountsPerTopic(::, j) := wordCounts :* latentTopicAttribution(::, j)
-      }
-
-      val priorIncrement: DenseVector[Double] = sum(wordCountsPerTopic(::, *)).toDenseVector
-      // assert(abs(sum(priorIncrement) - sum(wordCounts)) <= 1e-6)
-
-      prior += priorIncrement
+      val updatedPrior = stepEM(prior, wordCounts)
+      prior = updatedPrior
     }
 
-    topicDistributionSample
+    new Dirichlet(prior).sample()
   }
 }
 
