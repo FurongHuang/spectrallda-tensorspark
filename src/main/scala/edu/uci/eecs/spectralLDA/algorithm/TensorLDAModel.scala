@@ -1,6 +1,6 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, norm, sum}
+import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, norm, pinv, sum}
 import breeze.numerics.{abs, lgamma, log, sqrt}
 import breeze.stats.distributions.{Dirichlet, Rand, RandBasis}
 import org.apache.spark.rdd.RDD
@@ -31,15 +31,56 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
 
   private val whitenedBeta = whiteningMatrix.t * smoothedBeta
 
-  /** compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
+  /** Compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
   def logLikelihood(docs: RDD[(Long, SparseVector[Double])],
                     maxIterationsEM: Int = 3)
       : Double = {
     docs
       .map {
         case (id: Long, wordCounts: SparseVector[Double]) =>
+          val topicDistribution: DenseVector[Double] = inferTopicDistribution(smoothedBeta,
+            wordCounts, maxIterationsEM)
+          TensorLDAModel.multinomialLogLikelihood(smoothedBeta * topicDistribution, wordCounts)
+      }
+      .sum
+  }
+
+  /** Approximately compute sum of loglikelihood(doc|topics over the doc, alpha, beta)
+    *
+    * We feed whitened beta and wordCounts to inferTopicDistribution to accelerate
+    *
+    * */
+  def logLikelihoodApprox1(docs: RDD[(Long, SparseVector[Double])],
+                               maxIterationsEM: Int = 3)
+      : Double = {
+    docs
+      .map {
+        case (id: Long, wordCounts: SparseVector[Double]) =>
           val topicDistribution: DenseVector[Double] = inferTopicDistribution(whitenedBeta,
               whiteningMatrix.t * wordCounts, maxIterationsEM)
+          TensorLDAModel.multinomialLogLikelihood(smoothedBeta * topicDistribution, wordCounts)
+      }
+      .sum
+  }
+
+  /** Approximately compute sum of loglikelihood(doc|topics over the doc, alpha, beta)
+    *
+    * We find the topicDistribution by simple linear regression
+    *
+    *    beta * topicDistribution = wordCounts
+    *
+    * */
+  def logLikelihoodApprox2(docs: RDD[(Long, SparseVector[Double])])
+      : Double = {
+    val linearRegressionMultiplier: DenseMatrix[Double] =
+      pinv(smoothedBeta.t * smoothedBeta) * smoothedBeta.t
+    val linearRegressionMultiplierBroadcast = docs.sparkContext.broadcast(linearRegressionMultiplier)
+
+    docs
+      .map {
+        case (id: Long, wordCounts: SparseVector[Double]) =>
+          val topicDistribution: DenseVector[Double] =
+            linearRegressionMultiplierBroadcast.value * wordCounts
           TensorLDAModel.multinomialLogLikelihood(smoothedBeta * topicDistribution, wordCounts)
       }
       .sum
@@ -71,9 +112,14 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
     val expectedWordCounts: DenseVector[Double] = beta * topicDistributionSample
     val priorIncrement: Seq[Double] = for {
       j <- 0 until k
+
+      // latentTopicAttribution is a vocabSize-by-k matrix which stores the probability
+      // that $word_i$ is attributed to $topic_j$, $1\le i\le vocabSize$, $1\le j\le k$.
       latentTopicAttribution = beta(::, j) * topicDistributionSample(j) / expectedWordCounts
-      wordCountsCurrentTopic = wordCounts :* latentTopicAttribution
-    } yield sum(wordCountsCurrentTopic)
+
+      
+      wordCountsCurrentTopic = wordCounts.t * latentTopicAttribution
+    } yield wordCountsCurrentTopic
 
     val updatedPrior = topicDistributionPrior + DenseVector[Double](priorIncrement: _*)
     assert(updatedPrior.forall(_ > 0.0))
