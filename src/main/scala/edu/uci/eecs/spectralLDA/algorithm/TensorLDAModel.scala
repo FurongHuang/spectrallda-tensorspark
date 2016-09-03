@@ -2,7 +2,7 @@ package edu.uci.eecs.spectralLDA.algorithm
 
 import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, max, norm, sum}
 import breeze.numerics._
-import breeze.stats.distributions.{Dirichlet, Gamma, Rand, RandBasis}
+import breeze.stats.distributions.Gamma
 import org.apache.spark.rdd.RDD
 
 
