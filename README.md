@@ -96,7 +96,9 @@ val lda = new TensorLDASketch(
 // k is the number of topics. It stores the word distribution 
 // per topic column-wise
 // alpha is the length-k Dirichlet prior for the topic distribution
-val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+// eigvecM2 is the V-by-k matrix of the top k eigenvectors of M2
+// eigvalM2 is the length-k vector of the top k eigenvalues of M2
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double], eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double]) = lda.fit(documents)
 ```
 
 For non-sketching-based decomposition, the usage is simpler.
