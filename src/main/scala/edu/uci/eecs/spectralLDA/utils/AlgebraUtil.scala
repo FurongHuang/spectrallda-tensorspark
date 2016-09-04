@@ -13,7 +13,6 @@ import scalaxy.loops._
 import scala.language.postfixOps
 
 object AlgebraUtil {
-  private val TOLERANCE: Double = 1.0e-9
 
   def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
     val ctc: DenseMatrix[Double] = c.t * c
@@ -74,18 +73,16 @@ object AlgebraUtil {
     Out.t
   }
 
-  def isConverged(oldA: DenseMatrix[Double], newA: DenseMatrix[Double]): Boolean = {
+  def isConverged(oldA: DenseMatrix[Double], newA: DenseMatrix[Double])
+                 (implicit dotThreshold: Double = 0.99): Boolean = {
     if (oldA == null || oldA.size == 0) {
       return false
     }
-    val numerator: Double = breeze.linalg.norm(newA.toDenseVector - oldA.toDenseVector)
-    val denominator: Double = breeze.linalg.norm(newA.toDenseVector)
-    val delta: Double = numerator / denominator
 
     val dprod = diag(oldA.t * newA)
-    println(s"delta: $delta\tdot: ${diag(oldA.t * newA)}")
-    //delta < TOLERANCE
-    all(dprod :> 0.99)
+    println(s"dot(oldA, newA): ${diag(oldA.t * newA)}")
+
+    all(dprod :> dotThreshold)
   }
 
   def Cumsum(xs: Array[Double]): Array[Double] = {

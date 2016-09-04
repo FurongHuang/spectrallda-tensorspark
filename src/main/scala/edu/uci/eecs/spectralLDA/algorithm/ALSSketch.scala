@@ -57,7 +57,7 @@ class ALSSketch(dimK: Int,
       // println("Mode A...")
       A = updateALSiteration(fft_sketch_T, B, C, sketcher)
       lambda = norm(A(::, *)).toDenseVector
-      println(s"lambda: max ${max(lambda)}, min ${min(lambda)}")
+      println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
@@ -146,9 +146,9 @@ class NNALSSketch(dimK: Int,
       // println("Mode A...")
       val refA = updateALSiteration(fft_sketch_T, B, C, sketcher)
       A = hInv * NonNegativeAdjustment.simplexProj_Matrix(h * refA)
-      println(s"sum(HA) ${sum(h * A)}\tmin(HA) ${min(h * A)}")
+      println(s"iter $iter\tsum(HA) ${sum(h * A)}\tmin(HA) ${min(h * A)}")
       lambda = norm(A(::, *)).toDenseVector
-      println(s"lambda: max ${max(lambda)}, min ${min(lambda)}")
+      println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
