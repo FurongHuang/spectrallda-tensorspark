@@ -100,12 +100,9 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
                  smoothing: Double = 0.01)
       : DenseMatrix[Double] = {
     // smoothing so that beta is positive
-    val totalTermCounts: DenseVector[Double] = docs.map { _._2 }.reduce(_ + _).toDenseVector
-    val averageTermCounts: DenseVector[Double] = totalTermCounts / docs.count.toDouble
 
     val smoothedBeta: DenseMatrix[Double] = topicWordDistribution * (1 - smoothing)
-    // smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
-    smoothedBeta += (averageTermCounts / sum(averageTermCounts)) * DenseVector.ones[Double](k).t * smoothing
+    smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
 
     assert(sum(smoothedBeta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
     assert(smoothedBeta.forall(_ > 1e-10))
