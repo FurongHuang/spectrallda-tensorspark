@@ -8,7 +8,6 @@ import org.apache.spark.rdd.RDD
 
 class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
                      val alpha: DenseVector[Double])
-                    (implicit smoothing: Double = 0.01)
     extends Serializable {
 
   assert(topicWordDistribution.cols == alpha.length)
@@ -23,7 +22,7 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
                     smoothing: Double,
                     maxIterations: Int)
       : Double = {
-    val smoothedBeta = smoothBeta(smoothing)
+    val smoothedBeta = smoothBeta(docs, smoothing)
     logLikelihoodBound(docs, smoothedBeta, gammaShape = 1.0, maxIterations = maxIterations)
   }
 
@@ -97,15 +96,16 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
   }
 
 
-  def smoothBeta(smoothing: Double = 0.01)
+  def smoothBeta(docs: RDD[(Long, SparseVector[Double])],
+                 smoothing: Double = 0.01)
       : DenseMatrix[Double] = {
     // smoothing so that beta is positive
-    // val totalTermCounts: DenseVector[Double] = docs.map { _._2 }.reduce(_ + _).toDenseVector
-    // val averageTermCounts: DenseVector[Double] = totalTermCounts / docs.count.toDouble
+    val totalTermCounts: DenseVector[Double] = docs.map { _._2 }.reduce(_ + _).toDenseVector
+    val averageTermCounts: DenseVector[Double] = totalTermCounts / docs.count.toDouble
 
     val smoothedBeta: DenseMatrix[Double] = topicWordDistribution * (1 - smoothing)
-    smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
-    // smoothedBeta += (averageTermCounts / sum(averageTermCounts)) * DenseVector.ones[Double](k).t * smoothing
+    // smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
+    smoothedBeta += (averageTermCounts / sum(averageTermCounts)) * DenseVector.ones[Double](k).t * smoothing
 
     assert(sum(smoothedBeta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
     assert(smoothedBeta.forall(_ > 1e-10))
