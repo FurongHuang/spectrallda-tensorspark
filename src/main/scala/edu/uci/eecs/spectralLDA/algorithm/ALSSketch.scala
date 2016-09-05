@@ -4,8 +4,9 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Tensor Decomposition Algorithms.
   * Alternating Least Square algorithm is implemented.
   */
+import breeze.linalg.qr.QR
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv, sum}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv, qr, sum}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.numerics._
@@ -41,9 +42,13 @@ class ALSSketch(dimK: Int,
   def run(implicit randBasis: RandBasis = Rand)
         : (DenseMatrix[Double], DenseVector[Double]) = {
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
-    var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var C: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    val qr.QR(randA, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+    var qr.QR(randB, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+    var qr.QR(randC, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+
+    var A: DenseMatrix[Double] = randA
+    var B: DenseMatrix[Double] = randB
+    var C: DenseMatrix[Double] = randC
 
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
