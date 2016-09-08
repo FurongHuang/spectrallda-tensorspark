@@ -1,14 +1,13 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, norm, sum}
-import breeze.numerics.{abs, lgamma, log}
-import breeze.stats.distributions.{Dirichlet, Rand, RandBasis}
+import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, max, norm, sum}
+import breeze.numerics._
+import breeze.stats.distributions.Gamma
 import org.apache.spark.rdd.RDD
 
 
 class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
                      val alpha: DenseVector[Double])
-                    (implicit smoothing: Double = 0.01)
     extends Serializable {
 
   assert(topicWordDistribution.cols == alpha.length)
@@ -18,53 +17,97 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
   private val k = alpha.length
   private val vocabSize = topicWordDistribution.rows
 
-  // smoothing so that beta is positive
-  val beta: DenseMatrix[Double] = topicWordDistribution * (1 - smoothing)
-  beta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
-
-  assert(sum(beta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
-  assert(beta.forall(_ > 1e-10))
-
-  /** compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
+  /** Compute sum of loglikelihood(doc|topics over the doc, alpha, beta) */
   def logLikelihood(docs: RDD[(Long, SparseVector[Double])],
-                    maxIterationsEM: Int = 3)
+                    smoothing: Double,
+                    maxIterations: Int)
       : Double = {
-    docs
-      .map {
-        case (id: Long, wordCounts: SparseVector[Double]) =>
-          val topicDistribution: DenseVector[Double] = inferEM(wordCounts, maxIterationsEM)
-          TensorLDAModel.multinomialLogLikelihood(beta * topicDistribution, wordCounts)
-      }
-      .sum
+    val smoothedBeta = smoothBeta(docs, smoothing)
+    logLikelihoodBound(docs, smoothedBeta, gammaShape = 1.0, maxIterations = maxIterations)
   }
 
-  def inferEM(wordCounts: SparseVector[Double], maxIterationsEM: Int)
-             (implicit randBasis: RandBasis = Rand)
+  def variationalTopicInference(termCounts: SparseVector[Double],
+                                beta: DenseMatrix[Double],
+                                gammaShape: Double,
+                                maxIterations: Int)
       : DenseVector[Double] = {
-    var prior = alpha.copy
-    var topicDistributionSample: DenseVector[Double] = null
+    // Initialize the variational distribution q(theta|gamma) for the mini-batch
+    val gammad = new Gamma(gammaShape, 1.0 / gammaShape).samplesVector(k)        // K
+    val expElogthetad: DenseVector[Double] = exp(TensorLDAModel.dirichletExpectation(gammad))  // K
+    val expElogbetad = beta(termCounts.activeKeysIterator.toSeq, ::).toDenseMatrix    // ids * K
 
-    var latentTopicAttribution: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
-    var wordCountsPerTopic: DenseMatrix[Double] = DenseMatrix.zeros[Double](vocabSize, k)
+    val phiNorm: DenseVector[Double] = expElogbetad * expElogthetad :+ 1e-100            // ids
+    var meanGammaChange = 1D
+    val ctsVector = DenseVector[Double](termCounts.activeValuesIterator.toSeq: _*)                                         // ids
 
-    for (i <- 0 until maxIterationsEM) {
-      topicDistributionSample = new Dirichlet(prior).sample()
-      // println(s"prior $prior, sample $topicDistributionSample")
+    // Iterate between gamma and phi until convergence
+    var iter = 0
+    while (iter < maxIterations && meanGammaChange > 1e-3) {
+      val lastgamma = gammad.copy
+      //        K                  K * ids               ids
+      gammad := (expElogthetad :* (expElogbetad.t * (ctsVector :/ phiNorm))) :+ alpha
+      expElogthetad := exp(TensorLDAModel.dirichletExpectation(gammad))
+      // TODO: Keep more values in log space, and only exponentiate when needed.
+      phiNorm := expElogbetad * expElogthetad :+ 1e-100
+      meanGammaChange = sum(abs(gammad - lastgamma)) / k
 
-      val expectedWordCounts: DenseVector[Double] = beta * topicDistributionSample
-
-      for (j <- 0 until k) {
-        latentTopicAttribution(::, j) := beta(::, j) * topicDistributionSample(j) / expectedWordCounts
-        wordCountsPerTopic(::, j) := wordCounts :* latentTopicAttribution(::, j)
-      }
-
-      val priorIncrement: DenseVector[Double] = sum(wordCountsPerTopic(::, *)).toDenseVector
-      // assert(abs(sum(priorIncrement) - sum(wordCounts)) <= 1e-6)
-
-      prior += priorIncrement
+      iter += 1
     }
 
-    topicDistributionSample
+    gammad
+  }
+
+  def logLikelihoodBound(documents: RDD[(Long, SparseVector[Double])],
+                         beta: DenseMatrix[Double],
+                         gammaShape: Double,
+                         maxIterations: Int): Double = {
+    // transpose because dirichletExpectation normalizes by row and we need to normalize
+    // by topic (columns of lambda)
+    val Elogbeta: DenseMatrix[Double] = log(beta)
+    val ElogbetaBc = documents.sparkContext.broadcast(Elogbeta)
+
+    // Sum bound components for each document:
+    //  component for prob(tokens) + component for prob(document-topic distribution)
+    val corpusPart = documents
+      .filter(_._2.activeSize > 0)
+      .map {
+        case (id: Long, termCounts: SparseVector[Double]) =>
+          val localElogbeta = ElogbetaBc.value
+          var docBound = 0.0D
+          val gammad: DenseVector[Double] = variationalTopicInference(
+            termCounts, beta, gammaShape, maxIterations)
+          val Elogthetad: DenseVector[Double] = TensorLDAModel.dirichletExpectation(gammad)
+
+          // E[log p(doc | theta, beta)]
+          termCounts.foreachPair { case (idx, count) =>
+            docBound += count * TensorLDAModel.logSumExp(Elogthetad + localElogbeta(idx, ::).t)
+          }
+
+          // E[log p(theta | alpha) - log q(theta | gamma)]
+          docBound += sum((alpha - gammad) :* Elogthetad)
+          docBound += sum(lgamma(gammad) - lgamma(alpha))
+          docBound += lgamma(sum(alpha)) - lgamma(sum(gammad))
+
+          docBound
+      }
+      .sum()
+
+    corpusPart
+  }
+
+
+  def smoothBeta(docs: RDD[(Long, SparseVector[Double])],
+                 smoothing: Double = 0.01)
+      : DenseMatrix[Double] = {
+    // smoothing so that beta is positive
+
+    val smoothedBeta: DenseMatrix[Double] = topicWordDistribution * (1 - smoothing)
+    smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
+
+    assert(sum(smoothedBeta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
+    assert(smoothedBeta.forall(_ > 1e-10))
+
+    smoothedBeta
   }
 }
 
@@ -79,5 +122,14 @@ private[algorithm] object TensorLDAModel {
 
     val coeff: Double = lgamma(sum(x) + 1) - sum(x.map(a => lgamma(a + 1)))
     coeff + sum(x :* log(p))
+  }
+
+  def dirichletExpectation(alpha: DenseVector[Double]): DenseVector[Double] = {
+    digamma(alpha) - digamma(sum(alpha))
+  }
+
+  def logSumExp(x: DenseVector[Double]): Double = {
+    val a = max(x)
+    a + log(sum(exp(x :- a)))
   }
 }

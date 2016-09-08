@@ -198,7 +198,8 @@ object SpectralLDA {
         maxIterations = params.maxIterations,
         randomisedSVD = true
       )(tolerance = params.tolerance)
-      lda.fit(documents)
+      val (beta_, alpha_, _, _) = lda.fit(documents)
+      (beta_, alpha_)
     }
     else {
       val lda = new TensorLDA(

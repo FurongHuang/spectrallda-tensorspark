@@ -29,7 +29,7 @@ class TensorLDASketch(dimK: Int,
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
          (implicit randBasis: RandBasis = Rand)
-  : (DenseMatrix[Double], DenseVector[Double]) = {
+  : (DenseMatrix[Double], DenseVector[Double], DenseMatrix[Double], DenseVector[Double]) = {
     val cumulantSketch: DataCumulantSketch = DataCumulantSketch.getDataCumulant(
       dimK, alpha0,
       documents,
@@ -75,6 +75,7 @@ class TensorLDASketch(dimK: Int,
             "output reasonable results. It could be due to the existence of very frequent words " +
             "across the documents or that the specified k is larger than the true number of topics.")
 
-    (NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix), alpha)
+    (NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix), alpha,
+      cumulantSketch.eigenVectorsM2, cumulantSketch.eigenValuesM2)
   }
 }
