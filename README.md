@@ -85,19 +85,19 @@ val lda = new TensorLDASketch(
   dimK = params.k,
   alpha0 = params.topicConcentration,
   sketcher = sketcher,
-  idfLowerBound = value,                     // optional, default: 1.0
-  m2ConditionNumberUB = value,               // optional, default: infinity
-  maxIterations = 200,                       // optional, default: 200
-  randomisedSVD = true                       // optional, default: true
-)(tolerance = params.tolerance)              // optional, default: 1e-9
+  idfLowerBound = value,            // optional, default: 1.0
+  m2ConditionNumberUB = value,      // optional, default: infinity
+  maxIterations = 200,              // optional, default: 200
+  randomisedSVD = true              // optional, default: true
+)(tolerance = params.tolerance)     // optional, default: 1e-9
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
 // k is the number of topics. It stores the word distribution 
 // per topic column-wise
 // alpha is the length-k Dirichlet prior for the topic distribution
-// eigvecM2 is the V-by-k matrix of the top k eigenvectors of M2
-// eigvalM2 is the length-k vector of the top k eigenvalues of M2
+// eigvecM2 is the V-by-k matrix for the top k eigenvectors of M2
+// eigvalM2 is the length-k vector for the top k eigenvalues of M2
 val (beta: DenseMatrix[Double], alpha: DenseVector[Double], eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double]) = lda.fit(documents)
 ```
 
@@ -110,20 +110,40 @@ import breeze.linalg._
 val lda = new TensorLDA(
   dimK = params.k,
   alpha0 = params.topicConcentration,
-  maxIterations = params.maxIterations,  // optional, default 200
-  tolerance = params.tolerance           // optional, default 1e-9
-)
-
-// If we want to only work on terms with IDF above a certain bound
-// import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-// val filteredDocs = TextProcessor.filterIDF(documents, <IDF lower bound>)
+  maxIterations = value,            // optional, default: 200
+  idfLowerBound = value,            // optional, default: 1.0
+  m2ConditionNumberUB = value,      // optional, default: infinity
+  randomisedSVD = true              // optional, default: true
+)(tolerance = params.tolerance)     // optional, default: 1e-9
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
 // k is the number of topics. It stores the word distribution 
 // per topic column-wise
 // alpha is the length-k Dirichlet prior for the topic distribution
-val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = lda.fit(documents)
+// eigvecM2 is the V-by-k matrix for the top k eigenvectors of M2
+// eigvalM2 is the length-k vector for the top k eigenvalues of M2
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double], eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double]) = lda.fit(documents)
+```
+
+If one just wants to decompose a 3rd-order symmetric tensor into the sum of rank-1 tensors, we could do
+
+```scala
+import edu.uci.eecs.spectralLDA.algorithm.ALS
+import breeze.linalg._
+
+val als = new ALS(
+  dimK = value,
+  thirdOrderMoments = value,        // k-by-(k*k) matrix for the unfolded 3rd-order symmetric tensor
+  maxIterations = value             // optional, default: 200
+)
+
+// We run ALS to find the best approximating sum of rank-1 tensors such that 
+// $$ M3 = \sum_{i=1}^k\alpha_i\beta_i^{\otimes 3} $$
+
+// beta is the k-by-k matrix with $\beta_i$ as columns
+// alpha is the vector for $(\alpha_1,\ldots,\alpha_k)$
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = als.run
 ```
 
 ### Set up Spark 2.0.0 to use system native BLAS/LAPACK
