@@ -19,14 +19,10 @@ class TensorLDA(dimK: Int,
   def fit(documents: RDD[(Long, SparseVector[Double])])
          (implicit randBasis: RandBasis = Rand)
           : (DenseMatrix[Double], DenseVector[Double]) = {
-    val documents_ = documents map {
-      case (id, wc) => (id, sum(wc), wc)
-    }
-
     val myData: DataCumulant = DataCumulant.getDataCumulant(
       dimK, alpha0,
       tolerance,
-      documents_
+      documents
     )
 
     val myALS: ALS = new ALS(dimK, myData)

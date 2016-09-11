@@ -5,7 +5,7 @@ import breeze.math.{Complex, Semiring}
 import breeze.storage.Zero
 
 import scala.reflect.ClassTag
-
+import scalaxy.loops._
 
 object TensorOps {
   def matrixNorm(m: DenseMatrix[Complex]): Double = {
@@ -34,6 +34,29 @@ object TensorOps {
       t(Seq(i, j, k)) = g(i, k * n(1) + j)
     }
     t
+  }
+
+  /** makes 3rd-order rank-1 tensor $$x\otimes y\otimes z$$, returns the unfolded version */
+  def makeRankOneTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
+      (x: DenseVector[V], y: DenseVector[V], z: DenseVector[V]): DenseMatrix[V] = {
+    val d1 = x.length
+    val d2 = y.length
+    val d3 = z.length
+
+    val result = DenseMatrix.zeros[V](d1, d2 * d3)
+
+    val evV = implicitly[Numeric[V]]
+    import evV._
+
+    for (i <- 0 until d1 optimized) {
+      for (j <- 0 until d2 optimized) {
+        for (k <- 0 until d3 optimized) {
+          result(i, k * d2 + j) = x(d1) * y(d2) * z(d3)
+        }
+      }
+    }
+
+    result
   }
 
   /** Khatri-Rao product */
