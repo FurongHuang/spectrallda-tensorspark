@@ -86,12 +86,19 @@ object DataCumulantSketch {
     val numDocs = validDocuments.count()
 
     println("Start calculating first order moments...")
-    val firstOrderMoments: DenseVector[Double] = validDocuments
-      .map {
-        case (_, length, vec) => vec / length.toDouble
+    val (m1Index: Array[Int], m1Value: Array[Double]) = validDocuments
+      .flatMap {
+        case (_, length, vec) =>
+          val termDistribution: SparseVector[Double] = vec / length.toDouble
+          termDistribution.activeIterator.toSeq
       }
-      .reduce(_ + _)
-      .map(_ / numDocs.toDouble).toDenseVector
+      .reduceByKey(_ + _)
+      .mapValues(_ / numDocs.toDouble)
+      .collect
+      .sorted
+      .unzip
+    val firstOrderMoments = new SparseVector[Double](m1Index, m1Value, dimVocab).toDenseVector
+
     // Zero out the terms with low IDF
     firstOrderMoments(termsLowIDF) := 0.0
     println("Finished calculating first order moments.")
