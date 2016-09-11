@@ -27,11 +27,11 @@ case class DataCumulant(thirdOrderMoments: DenseMatrix[Double],
 object DataCumulant {
   def getDataCumulant(dimK: Int,
                       alpha0: Double,
-                      tolerance: Double,
                       documents: RDD[(Long, SparseVector[Double])],
                       idfLowerBound: Double = 1.0,
-                      m2ConditionNumberUB: Double = Double.PositiveInfinity)
-                     (implicit randBasis: RandBasis = Rand)
+                      m2ConditionNumberUB: Double = Double.PositiveInfinity,
+                      randomisedSVD: Boolean = true)
+                     (implicit randBasis: RandBasis = Rand, tolerance: Double = 1e-9)
         : DataCumulant = {
     val sc: SparkContext = documents.sparkContext
 
@@ -63,15 +63,32 @@ object DataCumulant {
 
     println("Start calculating second order moments...")
     val (eigenVectors: DenseMatrix[Double], eigenValues: DenseVector[Double]) =
-      RandNLA.whiten2(
-        alpha0,
-        dimVocab,
-        dimK,
-        numDocs,
-        firstOrderMoments,
-        validDocuments,
-        termsLowIDF
-      )
+      if (randomisedSVD) {
+        RandNLA.whiten2(
+          alpha0,
+          dimVocab,
+          dimK,
+          numDocs,
+          firstOrderMoments,
+          validDocuments,
+          termsLowIDF
+        )
+      }
+      else {
+        val E_x1_x2: DenseMatrix[Double] = validDocuments
+          .map { case (_, len, vec) =>
+            (TensorOps.spVectorTensorProd2d(vec) - diag(vec)) / (len * (len - 1))
+          }
+          .reduce(_ + _)
+          .map(_ / numDocs.toDouble).toDenseMatrix
+        val M2: DenseMatrix[Double] = E_x1_x2 - alpha0 / (alpha0 + 1) * (firstOrderMoments * firstOrderMoments.t)
+        M2(termsLowIDF, ::) := 0.0
+        M2(::, termsLowIDF) := 0.0
+
+        val eigSym.EigSym(sigma, u) = eigSym(alpha0 * (alpha0 + 1) * M2)
+        val i = argsort(sigma)
+        (u(::, i.slice(dimVocab - dimK, dimVocab)).copy, sigma(i.slice(dimVocab - dimK, dimVocab)).copy)
+      }
     println("Finished calculating second order moments and whitening matrix.")
 
     val m2ConditionNumber: Double = max(eigenValues) / min(eigenValues)

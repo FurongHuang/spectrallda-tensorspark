@@ -9,14 +9,17 @@ import scalaxy.loops._
 import scala.language.postfixOps
 
 object TensorOps {
+  /** Complex matrix norm */
   def matrixNorm(m: DenseMatrix[Complex]): Double = {
     norm(norm(m(::, *)).toDenseVector)
   }
 
+  /** Double matrix norm */
   def dmatrixNorm(m: DenseMatrix[Double]): Double = {
     norm(norm(m(::, *)).toDenseVector)
   }
 
+  /** Unfold 3rd-order tensor */
   def unfoldTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
         (t: Tensor[Seq[Int], V], n: Seq[Int]): DenseMatrix[V] = {
     assert(n.length == 3)
@@ -27,6 +30,7 @@ object TensorOps {
     m
   }
 
+  /** Build 3rd-order tensor from the unfolded representation */
   def tensor3dFromUnfolded[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
       (g: DenseMatrix[V], n: Seq[Int]): Tensor[Seq[Int], V] = {
     assert(n.length == 3)
@@ -52,7 +56,7 @@ object TensorOps {
     for (i <- 0 until d1 optimized) {
       for (j <- 0 until d2 optimized) {
         for (k <- 0 until d3 optimized) {
-          result(i, k * d2 + j) = x(d1) * y(d2) * z(d3)
+          result(i, k * d2 + j) = x(i) * y(j) * z(k)
         }
       }
     }
@@ -81,6 +85,7 @@ object TensorOps {
     result
   }
 
+  /** Part of the ALS update formula */
   def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
     val ctc: DenseMatrix[Double] = c.t * c
     val btb: DenseMatrix[Double] = b.t * b

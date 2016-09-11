@@ -26,7 +26,6 @@ class TensorLDA(dimK: Int,
     val cumulant: DataCumulant = DataCumulant.getDataCumulant(
       dimK,
       alpha0,
-      tolerance,
       documents,
       idfLowerBound,
       m2ConditionNumberUB
