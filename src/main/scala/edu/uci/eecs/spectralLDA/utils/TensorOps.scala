@@ -6,6 +6,7 @@ import breeze.storage.Zero
 
 import scala.reflect.ClassTag
 import scalaxy.loops._
+import scala.language.postfixOps
 
 object TensorOps {
   def matrixNorm(m: DenseMatrix[Complex]): Double = {
@@ -78,6 +79,13 @@ object TensorOps {
       result(::, i) := krprod[V](A(::, i), B(::, i))
     }
     result
+  }
+
+  def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
+    val ctc: DenseMatrix[Double] = c.t * c
+    val btb: DenseMatrix[Double] = b.t * b
+    val to_be_inverted: DenseMatrix[Double] = ctc :* btb
+    breeze.linalg.pinv(to_be_inverted)
   }
 
   /** tensor product v * v.t given sparse vector v */

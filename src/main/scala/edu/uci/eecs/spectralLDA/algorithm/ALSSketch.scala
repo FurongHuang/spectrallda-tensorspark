@@ -5,8 +5,8 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import breeze.linalg.qr.QR
-import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv, qr, sum}
+import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps, NonNegativeAdjustment}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, qr, sum}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.numerics._
@@ -14,6 +14,7 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
+import scalaxy.loops._
 import scala.language.postfixOps
 
 /** Sketched tensor decomposition by Alternating Least Square (ALS)
@@ -86,7 +87,7 @@ class ALSSketch(dimK: Int,
                                  sketcher: TensorSketcher[Double, Double])
           : DenseMatrix[Double] = {
     // pinv((C^T C) :* (B^T B))
-    val Inverted: DenseMatrix[Double] = AlgebraUtil.to_invert(C, B)
+    val Inverted: DenseMatrix[Double] = TensorOps.to_invert(C, B)
 
     // T(C katri-rao dot B)
     val TIBC: DenseMatrix[Double] = TensorSketchOps.TIUV(fft_sketch_T, B, C, sketcher)
@@ -235,7 +236,7 @@ private[algorithm] object TensorSketchOps {
       && sketcher.n(0) == U.rows)
 
     val result: DenseMatrix[Double] = DenseMatrix.zeros[Double](U.rows, U.cols)
-    for (j <- 0 until U.cols) {
+    for (j <- 0 until U.cols optimized) {
       result(::, j) := TIuv(fft_sketch_T, U(::, j), V(::, j), sketcher)
     }
 
