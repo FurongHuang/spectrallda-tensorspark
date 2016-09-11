@@ -64,6 +64,10 @@ object DataCumulantSketch {
                       randomisedSVD: Boolean = true)
                      (implicit tolerance: Double = 1e-9, randBasis: RandBasis = Rand)
   : DataCumulantSketch = {
+    assert(dimK > 0, "The number of topics dimK must be positive.")
+    assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
+    assert(sketcher.n forall { _ == dimK }, s"The sketcher must work on symmetric tensors of shape ($dimK, ..., $dimK).")
+
     val sc: SparkContext = documents.sparkContext
 
     val idf: DenseVector[Double] = TextProcessor.inverseDocumentFrequency(documents)

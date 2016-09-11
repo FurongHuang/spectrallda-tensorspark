@@ -31,6 +31,9 @@ class ALS(dimK: Int,
           thirdOrderMoments: DenseMatrix[Double],
           maxIterations: Int = 200)
   extends Serializable {
+  assert(dimK > 0, "The number of topics dimK must be positive.")
+  assert(thirdOrderMoments.rows == dimK && thirdOrderMoments.cols == dimK * dimK,
+    "The thirdOrderMoments must be dimK-by-(dimK * dimK) unfolded matrix")
 
   /** Run Alternating Least Squares (ALS)
     *

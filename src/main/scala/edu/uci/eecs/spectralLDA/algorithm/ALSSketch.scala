@@ -40,6 +40,9 @@ class ALSSketch(dimK: Int,
                 sketcher: TensorSketcher[Double, Double],
                 maxIterations: Int = 200
                 ) extends Serializable {
+  assert(sketcher.n forall { _ == dimK }, s"The sketcher must work on symmetric tensors of shape ($dimK, ..., $dimK).")
+  assert(sketcher.B == fft_sketch_T.rows && sketcher.b == fft_sketch_T.cols,
+    s"fft_sketch_T must be of shape ${sketcher.B}-by-${sketcher.b} as sketcher.B = ${sketcher.B}, sketcher.b = ${sketcher.b}")
 
   def run(implicit randBasis: RandBasis = Rand)
         : (DenseMatrix[Double], DenseVector[Double]) = {

@@ -60,6 +60,9 @@ object DataCumulant {
                       randomisedSVD: Boolean = true)
                      (implicit randBasis: RandBasis = Rand, tolerance: Double = 1e-9)
         : DataCumulant = {
+    assert(dimK > 0, "The number of topics dimK must be positive.")
+    assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
+
     val sc: SparkContext = documents.sparkContext
 
     val idf: DenseVector[Double] = TextProcessor.inverseDocumentFrequency(documents)
