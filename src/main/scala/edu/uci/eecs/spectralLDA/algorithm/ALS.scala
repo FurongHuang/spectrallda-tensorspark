@@ -10,11 +10,36 @@ import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
 import breeze.linalg.{*, DenseMatrix, DenseVector, norm, max, min}
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
+/** Tensor decomposition by Alternating Least Square (ALS)
+  *
+  * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
+  *
+  * $$ T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i $$
+  *
+  * If we pool all \lambda_i in the vector \Lambda, all the column vectors \lambda_i a_i in A,
+  * b_i in B, c_i in C, then
+  *
+  * $$ T^{1} = A \diag(\Lambda)(C \khatri-rao product B)^{\top} $$
+  *
+  * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
+  *
+  * @param dimK               tensor T is of shape dimK-by-dimK-by-dimK
+  * @param thirdOrderMoments  3rd-order moments i.e. $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
+  * @param maxIterations      max iterations for the ALS algorithm
+  */
 class ALS(dimK: Int,
           thirdOrderMoments: DenseMatrix[Double],
           maxIterations: Int = 200)
   extends Serializable {
 
+  /** Run Alternating Least Squares (ALS)
+    *
+    * Compute the best approximating rank-$k$ tensor $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
+    *
+    * @param randBasis   default random seed
+    * @return            dimK-by-dimK matrix with all the $beta_i$ as columns,
+    *                    length-dimK vector for all the eigenvalues
+    */
   def run(implicit randBasis: RandBasis = Rand)
      : (DenseMatrix[Double], DenseVector[Double])={
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)

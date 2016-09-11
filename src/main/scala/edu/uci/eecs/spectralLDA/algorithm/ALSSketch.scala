@@ -21,11 +21,12 @@ import scala.language.postfixOps
   *
   * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
   *
-  *    T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i
+  * $$ T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i $$
   *
-  * If we pool all the column vectors \lambda_i a_i in A, b_i in B, c_i in C, then
+  * If we pool all \lambda_i in the vector \Lambda, all the column vectors \lambda_i a_i in A,
+  * b_i in B, c_i in C, then
   *
-  *    T^{1} = A (C \khatri-rao product B)^{\top}
+  * $$ T^{1} = A \diag(\Lambda)(C \khatri-rao product B)^{\top} $$
   *
   * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
   *

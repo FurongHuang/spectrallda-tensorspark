@@ -20,15 +20,26 @@ import scala.language.postfixOps
 
 /** Sketch of data cumulant
   *
-  * Let the truncated eigendecomposition of $M2$ be $U\Sigma U^T$, $M2\in\mathsf{R}^{V\times V}$,
-  * $U\in\mathsf{R}^{V\times k}$, $\Sigma\in\mathsf{R}^{k\times k}$, where $V$ is the vocabulary size,
+  * Let the truncated eigendecomposition of the shifted M2 be
+  *
+  * $$M2 = U\Sigma U^T,$$
+  *
+  * where $M2\in\mathsf{R}^{V\times V}$, $U\in\mathsf{R}^{V\times k}$,
+  * $\Sigma\in\mathsf{R}^{k\times k}$, $V$ is the vocabulary size,
   * $k$ is the number of topics, $k<V$.
   *
   * If we denote $W=U\Sigma^{-1/2}$, then $W^T M2 W\approx I$. We call $W$ the whitening matrix.
   *
-  * @param fftSketchWhitenedM3 FFT of the sketch of whitened M3, multiplied by a coefficient
-  *                                i.e \frac{(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)
-  *                                      = \sum_{i=1}^k\frac{\alpha_i}{\alpha_0}(W^T\mu_i)^{\otimes 3}
+  * $W$ could be used to whiten the shifted M3,
+  *
+  * $$ \frac{\alpha_0(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)
+  *       = \sum_{i=1}^k\alpha_i(W^T\mu_i)^{\otimes 3}
+  *       = \sum_{i=1}^k\alpha_i^{-1/2}(W^T\alpha_i^{1/2}\mu_i)^{\otimes 3} $$
+  *
+  * Note $W^T\alpha_i^{1/2}\mu_i$ are orthonormal, for all $1\le i\le k$.
+  *
+  * @param fftSketchWhitenedM3 FFT of the sketch of scaled whitened M3, precisely,
+  *                            $\frac{\alpha_0(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)$
   * @param eigenVectorsM2   V-by-k top eigenvectors of shifted M2, stored column-wise
   * @param eigenValuesM2    length-k top eigenvalues of shifted M2
   *

@@ -10,14 +10,41 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-import edu.uci.eecs.spectralLDA.utils
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
 import scalaxy.loops._
 
-
+/** Data cumulant
+  *
+  * Let the truncated eigendecomposition of the shifted M2 be
+  *
+  * $$M2 = U\Sigma U^T,$$
+  *
+  * where $M2\in\mathsf{R}^{V\times V}$, $U\in\mathsf{R}^{V\times k}$,
+  * $\Sigma\in\mathsf{R}^{k\times k}$, $V$ is the vocabulary size,
+  * $k$ is the number of topics, $k<V$.
+  *
+  * If we denote $W=U\Sigma^{-1/2}$, then $W^T M2 W\approx I$. We call $W$ the whitening matrix.
+  *
+  * $W$ could be used to whiten the shifted M3,
+  *
+  * $$ \frac{\alpha_0(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)
+  *       = \sum_{i=1}^k\alpha_i(W^T\mu_i)^{\otimes 3}
+  *       = \sum_{i=1}^k\alpha_i^{-1/2}(W^T\alpha_i^{1/2}\mu_i)^{\otimes 3} $$
+  *
+  * Note $W^T\alpha_i^{1/2}\mu_i$ are orthonormal, for all $1\le i\le k$.
+  *
+  * @param thirdOrderMoments Scaled whitened M3, precisely,
+  *                            $\frac{\alpha_0(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)$
+  * @param eigenVectorsM2   V-by-k top eigenvectors of shifted M2, stored column-wise
+  * @param eigenValuesM2    length-k top eigenvalues of shifted M2
+  *
+  * REFERENCES
+  * [Wang2015] Wang Y et al, Fast and Guaranteed Tensor Decomposition via Sketching, 2015,
+  *            http://arxiv.org/abs/1506.04448
+  *
+  */
 case class DataCumulant(thirdOrderMoments: DenseMatrix[Double],
                         eigenVectorsM2: DenseMatrix[Double],
                         eigenValuesM2: DenseVector[Double])
