@@ -12,7 +12,7 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
 /** Tensor decomposition by Alternating Least Square (ALS)
   *
-  * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
+  * Suppose dimK-by-dimK-by-dimK symmetric tensor T can be decomposed as sum of rank-1 tensors
   *
   * $$ T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i $$
   *
@@ -24,7 +24,8 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
   * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
   *
   * @param dimK               tensor T is of shape dimK-by-dimK-by-dimK
-  * @param thirdOrderMoments  3rd-order moments i.e. $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
+  * @param thirdOrderMoments  dimK-by-(dimK*dimK) matrix for the unfolded 3rd-order moments
+  *                           $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
   * @param maxIterations      max iterations for the ALS algorithm
   */
 class ALS(dimK: Int,
