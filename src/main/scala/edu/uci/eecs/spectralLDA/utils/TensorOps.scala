@@ -5,17 +5,21 @@ import breeze.math.{Complex, Semiring}
 import breeze.storage.Zero
 
 import scala.reflect.ClassTag
-
+import scalaxy.loops._
+import scala.language.postfixOps
 
 object TensorOps {
+  /** Complex matrix norm */
   def matrixNorm(m: DenseMatrix[Complex]): Double = {
     norm(norm(m(::, *)).toDenseVector)
   }
 
+  /** Double matrix norm */
   def dmatrixNorm(m: DenseMatrix[Double]): Double = {
     norm(norm(m(::, *)).toDenseVector)
   }
 
+  /** Unfold 3rd-order tensor */
   def unfoldTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
         (t: Tensor[Seq[Int], V], n: Seq[Int]): DenseMatrix[V] = {
     assert(n.length == 3)
@@ -26,6 +30,7 @@ object TensorOps {
     m
   }
 
+  /** Build 3rd-order tensor from the unfolded representation */
   def tensor3dFromUnfolded[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
       (g: DenseMatrix[V], n: Seq[Int]): Tensor[Seq[Int], V] = {
     assert(n.length == 3)
@@ -34,6 +39,29 @@ object TensorOps {
       t(Seq(i, j, k)) = g(i, k * n(1) + j)
     }
     t
+  }
+
+  /** makes 3rd-order rank-1 tensor $$x\otimes y\otimes z$$, returns the unfolded version */
+  def makeRankOneTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
+      (x: DenseVector[V], y: DenseVector[V], z: DenseVector[V]): DenseMatrix[V] = {
+    val d1 = x.length
+    val d2 = y.length
+    val d3 = z.length
+
+    val result = DenseMatrix.zeros[V](d1, d2 * d3)
+
+    val evV = implicitly[Numeric[V]]
+    import evV._
+
+    for (i <- 0 until d1 optimized) {
+      for (j <- 0 until d2 optimized) {
+        for (k <- 0 until d3 optimized) {
+          result(i, k * d2 + j) = x(i) * y(j) * z(k)
+        }
+      }
+    }
+
+    result
   }
 
   /** Khatri-Rao product */
@@ -55,6 +83,14 @@ object TensorOps {
       result(::, i) := krprod[V](A(::, i), B(::, i))
     }
     result
+  }
+
+  /** Part of the ALS update formula */
+  def to_invert(c: DenseMatrix[Double], b: DenseMatrix[Double]): DenseMatrix[Double] = {
+    val ctc: DenseMatrix[Double] = c.t * c
+    val btb: DenseMatrix[Double] = b.t * b
+    val to_be_inverted: DenseMatrix[Double] = ctc :* btb
+    breeze.linalg.pinv(to_be_inverted)
   }
 
   /** tensor product v * v.t given sparse vector v */

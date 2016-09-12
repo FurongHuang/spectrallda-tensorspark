@@ -182,7 +182,7 @@ object SpectralLDA {
     println("Finished reading data.")
 
     println("Start ALS algorithm for tensor decomposition...")
-    val (beta, alpha) = if (params.sketching) {
+    val (beta, alpha, _, _) = if (params.sketching) {
       println("Running tensor decomposition via sketching...")
       val sketcher = TensorSketcher[Double, Double](
         n = Seq(params.k, params.k, params.k),
@@ -198,8 +198,7 @@ object SpectralLDA {
         maxIterations = params.maxIterations,
         randomisedSVD = true
       )(tolerance = params.tolerance)
-      val (beta_, alpha_, _, _) = lda.fit(documents)
-      (beta_, alpha_)
+      lda.fit(documents)
     }
     else {
       val lda = new TensorLDA(

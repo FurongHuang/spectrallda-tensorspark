@@ -5,8 +5,8 @@ package edu.uci.eecs.spectralLDA.algorithm
   * Alternating Least Square algorithm is implemented.
   */
 import breeze.linalg.qr.QR
-import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, NonNegativeAdjustment}
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, pinv, qr, sum}
+import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps, NonNegativeAdjustment}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, qr, sum}
 import breeze.signal.{fourierTr, iFourierTr}
 import breeze.math.Complex
 import breeze.numerics._
@@ -14,17 +14,19 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 import breeze.stats.median
 import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
+import scalaxy.loops._
 import scala.language.postfixOps
 
 /** Sketched tensor decomposition by Alternating Least Square (ALS)
   *
   * Suppose dimK-by-dimK-by-dimK tensor T can be decomposed as sum of rank-1 tensors
   *
-  *    T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i
+  * $$ T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i $$
   *
-  * If we pool all the column vectors \lambda_i a_i in A, b_i in B, c_i in C, then
+  * If we pool all \lambda_i in the vector \Lambda, all the column vectors \lambda_i a_i in A,
+  * b_i in B, c_i in C, then
   *
-  *    T^{1} = A (C \khatri-rao product B)^{\top}
+  * $$ T^{1} = A \diag(\Lambda)(C \khatri-rao product B)^{\top} $$
   *
   * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
   *
@@ -38,6 +40,9 @@ class ALSSketch(dimK: Int,
                 sketcher: TensorSketcher[Double, Double],
                 maxIterations: Int = 200
                 ) extends Serializable {
+  assert(sketcher.n forall { _ == dimK }, s"The sketcher must work on symmetric tensors of shape ($dimK, ..., $dimK).")
+  assert(sketcher.B == fft_sketch_T.rows && sketcher.b == fft_sketch_T.cols,
+    s"fft_sketch_T must be of shape ${sketcher.B}-by-${sketcher.b} as sketcher.B = ${sketcher.B}, sketcher.b = ${sketcher.b}")
 
   def run(implicit randBasis: RandBasis = Rand)
         : (DenseMatrix[Double], DenseVector[Double]) = {
@@ -86,7 +91,7 @@ class ALSSketch(dimK: Int,
                                  sketcher: TensorSketcher[Double, Double])
           : DenseMatrix[Double] = {
     // pinv((C^T C) :* (B^T B))
-    val Inverted: DenseMatrix[Double] = AlgebraUtil.to_invert(C, B)
+    val Inverted: DenseMatrix[Double] = TensorOps.to_invert(C, B)
 
     // T(C katri-rao dot B)
     val TIBC: DenseMatrix[Double] = TensorSketchOps.TIUV(fft_sketch_T, B, C, sketcher)
@@ -235,7 +240,7 @@ private[algorithm] object TensorSketchOps {
       && sketcher.n(0) == U.rows)
 
     val result: DenseMatrix[Double] = DenseMatrix.zeros[Double](U.rows, U.cols)
-    for (j <- 0 until U.cols) {
+    for (j <- 0 until U.cols optimized) {
       result(::, j) := TIuv(fft_sketch_T, U(::, j), V(::, j), sketcher)
     }
 

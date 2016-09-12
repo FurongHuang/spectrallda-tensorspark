@@ -1,29 +1,51 @@
- package edu.uci.eecs.spectralLDA.algorithm
+package edu.uci.eecs.spectralLDA.algorithm
 
- /**
- * Tensor Decomposition Algorithms.
- * Alternating Least Square algorithm is implemented.
- * Created by Furong Huang on 11/2/15.
- */
- import edu.uci.eecs.spectralLDA.utils.AlgebraUtil
- import edu.uci.eecs.spectralLDA.datamoments.DataCumulant
- import breeze.linalg.{*, DenseMatrix, DenseVector, norm}
- import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
- import org.apache.spark.rdd.RDD
- import org.apache.spark.SparkContext
+/**
+* Tensor Decomposition Algorithms.
+* Alternating Least Square algorithm is implemented.
+* Created by Furong Huang on 11/2/15.
+*/
 
- import scalaxy.loops._
- import scala.language.postfixOps
- import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
+import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
+import breeze.linalg.{*, DenseMatrix, DenseVector, norm, max, min}
+import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
-class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
+/** Tensor decomposition by Alternating Least Square (ALS)
+  *
+  * Suppose dimK-by-dimK-by-dimK symmetric tensor T can be decomposed as sum of rank-1 tensors
+  *
+  * $$ T = \sum_{i=1}^{dimK} \lambda_i a_i\otimes b_i\otimes c_i $$
+  *
+  * If we pool all \lambda_i in the vector \Lambda, all the column vectors \lambda_i a_i in A,
+  * b_i in B, c_i in C, then
+  *
+  * $$ T^{1} = A \diag(\Lambda)(C \khatri-rao product B)^{\top} $$
+  *
+  * where T^{1} is a dimK-by-(dimK^2) matrix for the unfolded T.
+  *
+  * @param dimK               tensor T is of shape dimK-by-dimK-by-dimK
+  * @param thirdOrderMoments  dimK-by-(dimK*dimK) matrix for the unfolded 3rd-order moments
+  *                           $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
+  * @param maxIterations      max iterations for the ALS algorithm
+  */
+class ALS(dimK: Int,
+          thirdOrderMoments: DenseMatrix[Double],
+          maxIterations: Int = 200)
+  extends Serializable {
+  assert(dimK > 0, "The number of topics dimK must be positive.")
+  assert(thirdOrderMoments.rows == dimK && thirdOrderMoments.cols == dimK * dimK,
+    "The thirdOrderMoments must be dimK-by-(dimK * dimK) unfolded matrix")
 
-  def run(sc:SparkContext, maxIterations: Int)
-         (implicit randBasis: RandBasis = Rand)
+  /** Run Alternating Least Squares (ALS)
+    *
+    * Compute the best approximating rank-$k$ tensor $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
+    *
+    * @param randBasis   default random seed
+    * @return            dimK-by-dimK matrix with all the $beta_i$ as columns,
+    *                    length-dimK vector for all the eigenvalues
+    */
+  def run(implicit randBasis: RandBasis = Rand)
      : (DenseMatrix[Double], DenseVector[Double])={
-    val T: breeze.linalg.DenseMatrix[Double] = myData.thirdOrderMoments
-    val unwhiteningMatrix: DenseMatrix[Double] = myData.unwhiteningMatrix
-
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
     var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
     var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
@@ -34,59 +56,33 @@ class ALS(dimK: Int, myData: DataCumulant) extends Serializable{
 
     println("Start ALS iterations...")
     var iter: Int = 0
-    val T_RDD:RDD[DenseVector[Double]] = toRDD(sc,T)
     while ((iter == 0) || ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A))) {
       A_prev = A.copy
 
       // println("Mode A...")
-      val A_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, A, C, B, thisT)).collect()
-      for (idx <- 0 until dimK optimized) {
-        A(idx, ::) := A_array(idx).t
-      }
+      A = updateALSIteration(thirdOrderMoments, B, C)
       lambda = norm(A(::, *)).toDenseVector
+      println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
       A = AlgebraUtil.matrixNormalization(A)
 
       // println("Mode B...")
-      val B_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, B, A, C,thisT)).collect()
-      for (idx <- 0 until dimK optimized) {
-        B(idx, ::) := B_array(idx).t
-      }
+      B = updateALSIteration(thirdOrderMoments, C, A)
       B = AlgebraUtil.matrixNormalization(B)
 
       // println("Mode C...")
-      val C_array: Array[DenseVector[Double]] = T_RDD.map(thisT => updateALSiteration(dimK, C, B, A,thisT)).collect()
-      for (idx <- 0 until dimK optimized) {
-        C(idx, ::) := C_array(idx).t
-      }
+      C = updateALSIteration(thirdOrderMoments, A, B)
       C = AlgebraUtil.matrixNormalization(C)
 
       iter += 1
     }
     println("Finished ALS iterations.")
 
-    val whitenedTopicWordMatrix: DenseMatrix[Double] = unwhiteningMatrix * A.copy
-    val alpha: DenseVector[Double] = lambda.map(x => scala.math.pow(x, -2))
-    val topicWordMatrix: breeze.linalg.DenseMatrix[Double] = whitenedTopicWordMatrix * breeze.linalg.diag(lambda)
-    val topicWordMatrix_normed: DenseMatrix[Double] = NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix)
-    (topicWordMatrix_normed, alpha)
+    (A, lambda)
   }
 
-  private def toRDD(sc: SparkContext, m: DenseMatrix[Double]): RDD[DenseVector[Double]] = {
-    val rows: Iterator[Array[Double]] = if (m.isTranspose) {
-      m.data.grouped(m.majorStride)
-    } else {
-      val columns = m.data.grouped(m.rows)
-      columns.toArray.transpose.iterator // Skip this if you want a column-major RDD.
-    }
-    val vectors = rows.map(row => new DenseVector[Double](row))
-    sc.parallelize(vectors.to)
-  }
-
-  private def updateALSiteration(dimK: Int, A_old: DenseMatrix[Double], B_old: DenseMatrix[Double], C_old: DenseMatrix[Double], T: DenseVector[Double]): DenseVector[Double] = {
-    val Inverted: DenseMatrix[Double] = AlgebraUtil.to_invert(C_old, B_old)
-
-    assert(T.length == dimK * dimK)
-    val rhs: DenseVector[Double] = AlgebraUtil.Multip_KhatrioRao(T, C_old, B_old)
-    Inverted * rhs
+  private def updateALSIteration(thirdOrderMoments: DenseMatrix[Double],
+                                 B: DenseMatrix[Double],
+                                 C: DenseMatrix[Double]): DenseMatrix[Double] = {
+    thirdOrderMoments * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
   }
 }
