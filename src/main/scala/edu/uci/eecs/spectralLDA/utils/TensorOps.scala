@@ -1,12 +1,11 @@
 package edu.uci.eecs.spectralLDA.utils
 
-import breeze.linalg.{*, CSCMatrix, Counter, DenseMatrix, DenseVector, SparseVector, Tensor, max, norm}
+import breeze.linalg.{*, CSCMatrix, Counter, DenseMatrix, DenseVector, SparseVector, Tensor, norm}
 import breeze.math.{Complex, Semiring}
 import breeze.storage.Zero
 
 import scala.reflect.ClassTag
-import scalaxy.loops._
-import scala.language.postfixOps
+
 
 object TensorOps {
   /** Complex matrix norm */
@@ -42,26 +41,15 @@ object TensorOps {
   }
 
   /** makes 3rd-order rank-1 tensor $$x\otimes y\otimes z$$, returns the unfolded version */
-  def makeRankOneTensor3d[@specialized(Double) V : ClassTag : Zero : Numeric : Semiring]
-      (x: DenseVector[V], y: DenseVector[V], z: DenseVector[V]): DenseMatrix[V] = {
-    val d1 = x.length
-    val d2 = y.length
-    val d3 = z.length
-
-    val result = DenseMatrix.zeros[V](d1, d2 * d3)
-
-    val evV = implicitly[Numeric[V]]
-    import evV._
-
-    for (i <- 0 until d1 optimized) {
-      for (j <- 0 until d2 optimized) {
-        for (k <- 0 until d3 optimized) {
-          result(i, k * d2 + j) = x(i) * y(j) * z(k)
-        }
-      }
-    }
-
-    result
+  def makeRankOneTensor3d(x: DenseVector[Double],
+                          y: DenseVector[Double],
+                          z: DenseVector[Double]
+                         ): DenseMatrix[Double] = {
+    // This is a non-templated version of the function
+    // It seems Spark 2.0.0 worker nodes don't work correctly
+    // with the templated version of the function
+    val p = y * z.t
+    x * p.toDenseVector.t
   }
 
   /** Khatri-Rao product */
