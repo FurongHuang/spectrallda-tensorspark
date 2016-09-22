@@ -6,7 +6,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.mllib.clustering._
 import org.apache.spark.mllib.linalg._
 
-object CVLogLikelihood {
+object CVLogPerplexity {
   def main(args: Array[String]) = {
     val conf: SparkConf = new SparkConf().setAppName(s"Spectral LDA")
     val sc: SparkContext = new SparkContext(conf)
@@ -35,7 +35,7 @@ object CVLogLikelihood {
       .reduce(_ + _)
 
     val tensorLDA = new TensorLDA(dimK = k, alpha0 = alpha0)
-    val (beta, alpha, _, _) = tensorLDA.fit(splits(0))
+    val (beta, alpha, _, _, _) = tensorLDA.fit(splits(0))
 
     val tensorLDAModel = new TensorLDAModel(beta, alpha)
     val tensorLDALogL = tensorLDAModel.logLikelihood(splits(1), smoothing = 1e-6, maxIterations = 50)

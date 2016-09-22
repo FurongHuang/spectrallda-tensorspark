@@ -178,37 +178,16 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
-
     println("Finished reading data.")
 
     println("Start ALS algorithm for tensor decomposition...")
-    val (beta, alpha, _, _) = if (params.sketching) {
-      println("Running tensor decomposition via sketching...")
-      val sketcher = TensorSketcher[Double, Double](
-        n = Seq(params.k, params.k, params.k),
-        B = params.B,
-        b = params.b
-      )
-      val lda = new TensorLDASketch(
-        dimK = params.k,
-        alpha0 = params.topicConcentration,
-        sketcher = sketcher,
-        idfLowerBound = params.idfLowerBound,
-        m2ConditionNumberUB = params.m2ConditionNumberUB,
-        maxIterations = params.maxIterations,
-        randomisedSVD = true
-      )(tolerance = params.tolerance)
-      lda.fit(documents)
-    }
-    else {
-      val lda = new TensorLDA(
-        params.k,
-        params.topicConcentration,
-        params.maxIterations,
-        params.tolerance
-      )
-      lda.fit(documents)
-    }
+    val lda = new TensorLDA(
+      params.k,
+      params.topicConcentration,
+      params.maxIterations,
+      params.tolerance
+    )
+    val (beta, alpha, _, _, _) = lda.fit(documents)
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9

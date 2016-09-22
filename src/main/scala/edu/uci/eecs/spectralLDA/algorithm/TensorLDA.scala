@@ -26,7 +26,9 @@ class TensorLDA(dimK: Int,
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
          (implicit randBasis: RandBasis = Rand)
-          : (DenseMatrix[Double], DenseVector[Double], DenseMatrix[Double], DenseVector[Double]) = {
+          : (DenseMatrix[Double], DenseVector[Double],
+             DenseMatrix[Double], DenseVector[Double],
+             DenseVector[Double]) = {
     val cumulant: DataCumulant = DataCumulant.getDataCumulant(
       dimK,
       alpha0,
@@ -70,7 +72,7 @@ class TensorLDA(dimK: Int,
       "across the documents or that the specified k is larger than the true number of topics.")
 
     (NonNegativeAdjustment.simplexProj_Matrix(topicWordMatrix), alpha,
-      cumulant.eigenVectorsM2, cumulant.eigenValuesM2)
+      cumulant.eigenVectorsM2, cumulant.eigenValuesM2, cumulant.firstOrderMoments)
   }
 
 }
