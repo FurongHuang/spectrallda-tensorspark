@@ -35,12 +35,23 @@ object CVLogPerplexity {
       .reduce(_ + _)
 
     val tensorLDA = new TensorLDA(dimK = k, alpha0 = alpha0)
-    val (beta, alpha, _, _, _) = tensorLDA.fit(splits(0))
+    val (beta, alpha, _, _, m1) = tensorLDA.fit(splits(0))
 
-    val tensorLDAModel = new TensorLDAModel(beta, alpha)
+    val augBeta = breeze.linalg.DenseMatrix.zeros[Double](beta.rows, k + 1)
+    val augAlpha = breeze.linalg.DenseVector.ones[Double](alpha.length + 1)
+    augBeta(::, 0 until k) := beta
+    augBeta(::, k) := m1
+    augAlpha(0 until k) := alpha
+
+    val tensorLDAModel = new TensorLDAModel(augBeta, augAlpha)
     val tensorLDALogL = tensorLDAModel.logLikelihood(splits(1), smoothing = 1e-6, maxIterations = 50)
+    println(s"Tensor LDA log-perplexity no extra smoothing: ${- tensorLDALogL / numTestTokens}")
 
-    println(s"Tensor LDA log-perplexity: ${- tensorLDALogL / numTestTokens}")
+    val tensorLDALogL01 = tensorLDAModel.logLikelihood(splits(1), smoothing = 0.1, maxIterations = 50)
+    println(s"Tensor LDA log-perplexity smoothing = 0.1: ${- tensorLDALogL01 / numTestTokens}")
+
+    val tensorLDALogL05 = tensorLDAModel.logLikelihood(splits(1), smoothing = 0.5, maxIterations = 50)
+    println(s"Tensor LDA log-perplexity smoothing = 0.5: ${- tensorLDALogL05 / numTestTokens}")
 
     val trainMapped: RDD[(Long, Vector)] = splits(0).map {
       case (id, tc) =>
@@ -48,12 +59,8 @@ object CVLogPerplexity {
         (id, new SparseVector(tc.length, idx, v))
     }
 
-    val betaRowSum = breeze.linalg.sum(beta(breeze.linalg.*, ::))
-    val idxZeroProb = betaRowSum.findAll(_ < 1e-10)
-
     val testMapped: RDD[(Long, Vector)] = splits(1).map {
       case (id, tc) =>
-        tc(idxZeroProb) := 0.0
         val (idx, v) = tc.activeIterator.toArray.unzip
         (id, new SparseVector(tc.length, idx, v))
     }
