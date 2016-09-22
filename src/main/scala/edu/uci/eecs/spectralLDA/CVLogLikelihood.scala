@@ -28,13 +28,19 @@ object CVLogLikelihood {
                            k: Int,
                            alpha0: Double
                           ): Unit = {
+    val numTestTokens = splits(1)
+      .map {
+        case (_, tc) => breeze.linalg.sum(tc)
+      }
+      .reduce(_ + _)
+
     val tensorLDA = new TensorLDA(dimK = k, alpha0 = alpha0)
     val (beta, alpha, _, _) = tensorLDA.fit(splits(0))
 
     val tensorLDAModel = new TensorLDAModel(beta, alpha)
     val tensorLDALogL = tensorLDAModel.logLikelihood(splits(1), smoothing = 1e-6, maxIterations = 50)
 
-    println(s"Tensor LDA log-l: $tensorLDALogL")
+    println(s"Tensor LDA log-perplexity: ${- tensorLDALogL / numTestTokens}")
 
     val trainMapped: RDD[(Long, Vector)] = splits(0).map {
       case (id, tc) =>
@@ -63,6 +69,6 @@ object CVLogLikelihood {
     val ldaModel: LDAModel = lda.run(trainMapped)
     val ldaLogL = ldaModel.asInstanceOf[LocalLDAModel].logLikelihood(testMapped)
 
-    println(s"Variational Inference log-l: $ldaLogL")
+    println(s"Variational Inference log-perplexity: ${- ldaLogL / numTestTokens}")
   }
 }
