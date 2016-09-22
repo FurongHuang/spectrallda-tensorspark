@@ -1,6 +1,6 @@
 package edu.uci.eecs.spectralLDA.algorithm
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, diag, max, norm, sum}
+import breeze.linalg.{*, DenseMatrix, DenseVector, SparseVector, Vector, any, max, sum}
 import breeze.numerics._
 import breeze.stats.distributions.Gamma
 import org.apache.spark.rdd.RDD
@@ -80,7 +80,9 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
 
           // E[log p(doc | theta, beta)]
           termCounts.foreachPair { case (idx, count) =>
-            docBound += count * TensorLDAModel.logSumExp(Elogthetad + localElogbeta(idx, ::).t)
+            if (any(localElogbeta(idx, ::).t :> -20.0)) {
+              docBound += count * TensorLDAModel.logSumExp(Elogthetad + localElogbeta(idx, ::).t)
+            }
           }
 
           // E[log p(theta | alpha) - log q(theta | gamma)]
@@ -105,7 +107,7 @@ class TensorLDAModel(val topicWordDistribution: DenseMatrix[Double],
     smoothedBeta += DenseMatrix.ones[Double](vocabSize, k) * (smoothing / vocabSize)
 
     assert(sum(smoothedBeta(::, *)).toDenseVector.forall(a => abs(a - 1) <= 1e-10))
-    assert(smoothedBeta.forall(_ > 1e-10))
+    assert(smoothing < 1e-4 || smoothedBeta.forall(_ > 1e-10))
 
     smoothedBeta
   }

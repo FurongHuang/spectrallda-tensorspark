@@ -56,7 +56,8 @@ class ALS(dimK: Int,
 
     println("Start ALS iterations...")
     var iter: Int = 0
-    while ((iter == 0) || ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A))) {
+    while ((iter == 0) ||
+      ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
       A_prev = A.copy
 
       // println("Mode A...")
