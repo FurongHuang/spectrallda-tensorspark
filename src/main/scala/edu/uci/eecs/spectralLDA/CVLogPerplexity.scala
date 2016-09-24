@@ -47,12 +47,6 @@ object CVLogPerplexity {
     val tensorLDALogL = tensorLDAModel.logLikelihood(splits(1), smoothing = 1e-6, maxIterations = 50)
     println(s"Tensor LDA log-perplexity no extra smoothing: ${- tensorLDALogL / numTestTokens}")
 
-    val tensorLDALogL01 = tensorLDAModel.logLikelihood(splits(1), smoothing = 0.1, maxIterations = 50)
-    println(s"Tensor LDA log-perplexity smoothing = 0.1: ${- tensorLDALogL01 / numTestTokens}")
-
-    val tensorLDALogL05 = tensorLDAModel.logLikelihood(splits(1), smoothing = 0.5, maxIterations = 50)
-    println(s"Tensor LDA log-perplexity smoothing = 0.5: ${- tensorLDALogL05 / numTestTokens}")
-
     val trainMapped: RDD[(Long, Vector)] = splits(0).map {
       case (id, tc) =>
         val (idx, v) = tc.activeIterator.toArray.unzip
