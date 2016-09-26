@@ -12,6 +12,19 @@ import breeze.stats.distributions.{Rand, RandBasis}
 import edu.uci.eecs.spectralLDA.utils.NonNegativeAdjustment
 import org.apache.spark.rdd.RDD
 
+
+/** Spectral LDA model
+  *
+  * @param dimK                 number of topics k
+  * @param alpha0               sum of alpha for the Dirichlet prior for topic distribution
+  * @param maxIterations        max number of iterations for the ALS algorithm for CP decomposition
+  * @param idfLowerBound        lower bound of Inverse Document Frequency (IDF) for the words to be taken into account
+  * @param m2ConditionNumberUB  upper bound of Condition Number for the shifted M2 matrix, if the empirical
+  *                             Condition Number exceeds the uppper bound the code quits with error before computing
+  *                             the M3. It allows to quickly check if there're any predominant topics
+  * @param randomisedSVD        uses randomised SVD on M2, true by default
+  * @param tolerance            tolerance, 1e-9 by default
+  */
 class TensorLDA(dimK: Int,
                 alpha0: Double,
                 maxIterations: Int = 200,
