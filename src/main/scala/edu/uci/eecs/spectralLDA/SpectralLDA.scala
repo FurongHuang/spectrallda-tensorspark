@@ -6,7 +6,7 @@
 
 package edu.uci.eecs.spectralLDA
 
-import edu.uci.eecs.spectralLDA.algorithm.{TensorLDA, TensorLDASketch}
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -19,7 +19,6 @@ import org.apache.spark.rdd.RDD
 import java.io._
 import java.nio.file.{Files, Paths}
 
-import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
 object SpectralLDA {
   private case class Params(

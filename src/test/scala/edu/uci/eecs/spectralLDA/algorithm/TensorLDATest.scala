@@ -5,7 +5,6 @@ import org.apache.spark.SparkContext
 import edu.uci.eecs.spectralLDA.testharness.Context
 import breeze.linalg._
 import breeze.stats.distributions._
-import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.apache.commons.math3.random.MersenneTwister
 
 class TensorLDATest extends FlatSpec with Matchers {
