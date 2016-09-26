@@ -5,7 +5,6 @@ import org.apache.spark.SparkContext
 import edu.uci.eecs.spectralLDA.testharness.Context
 import breeze.linalg._
 import breeze.stats.distributions._
-import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 import org.apache.commons.math3.random.MersenneTwister
 
 class TensorLDATest extends FlatSpec with Matchers {
@@ -63,7 +62,7 @@ class TensorLDATest extends FlatSpec with Matchers {
       randomisedSVD = false
     )
 
-    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _) = tensorLDA.fit(documentsRDD)
+    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _, _) = tensorLDA.fit(documentsRDD)
 
     // Rearrange the elements/columns of fitted_alpha and fitted_beta
     // to the order of initial alpha and beta
@@ -127,7 +126,7 @@ class TensorLDATest extends FlatSpec with Matchers {
       randomisedSVD = true
     )
 
-    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _) = tensorLDA.fit(documentsRDD)
+    val (fitted_beta: DenseMatrix[Double], fitted_alpha: DenseVector[Double], _, _, _) = tensorLDA.fit(documentsRDD)
 
     // Rearrange the elements/columns of fitted_alpha and fitted_beta
     // to the order of initial alpha and beta

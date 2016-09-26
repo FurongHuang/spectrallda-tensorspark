@@ -38,6 +38,7 @@ import org.apache.spark.SparkContext
   *                            $\frac{\alpha_0(\alpha_0+1)(\alpha_0+2)}{2} M3(W^T,W^T,W^T)$
   * @param eigenVectorsM2   V-by-k top eigenvectors of shifted M2, stored column-wise
   * @param eigenValuesM2    length-k top eigenvalues of shifted M2
+  * @param firstOrderMoments  average of term count frequencies M1
   *
   * REFERENCES
   * [Wang2015] Wang Y et al, Fast and Guaranteed Tensor Decomposition via Sketching, 2015,
@@ -46,7 +47,8 @@ import org.apache.spark.SparkContext
   */
 case class DataCumulant(thirdOrderMoments: DenseMatrix[Double],
                         eigenVectorsM2: DenseMatrix[Double],
-                        eigenValuesM2: DenseVector[Double])
+                        eigenValuesM2: DenseVector[Double],
+                        firstOrderMoments: DenseVector[Double])
   extends Serializable
 
 
@@ -213,7 +215,8 @@ object DataCumulant {
     new DataCumulant(
       whitenedM3 * alpha0 * (alpha0 + 1) * (alpha0 + 2) / 2.0,
       eigenVectors,
-      eigenValues
+      eigenValues,
+      firstOrderMoments
     )
   }
 

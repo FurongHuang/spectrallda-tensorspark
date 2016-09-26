@@ -6,7 +6,7 @@
 
 package edu.uci.eecs.spectralLDA
 
-import edu.uci.eecs.spectralLDA.algorithm.{TensorLDA, TensorLDASketch}
+import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
 import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -19,7 +19,6 @@ import org.apache.spark.rdd.RDD
 import java.io._
 import java.nio.file.{Files, Paths}
 
-import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
 
 object SpectralLDA {
   private case class Params(
@@ -32,9 +31,6 @@ object SpectralLDA {
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
-                             sketching: Boolean = false,
-                             B: Int = 50,
-                             b: Int = Math.pow(2, 8).toInt,
                              outputDir: String = ".",
                              stopWordFile: String = "src/main/resources/Data/datasets/StopWords_common.txt"
                           )
@@ -96,24 +92,6 @@ object SpectralLDA {
         .validate(x =>
           if (x == -1 || x > 0) success
           else failure("vocabSize must be -1 for all or positive."))
-
-      opt[Unit]("sketching")
-        .text("Tensor decomposition via sketching")
-        .action((_, c) => c.copy(sketching = true))
-      opt[Int]('B', "B")
-        .text(s"number of hash families for sketching. default: ${defaultParams.B}")
-        .action((x, c) => c.copy(B = x))
-        .validate(x =>
-          if (x > 0) success
-          else failure("The number of hash families B for sketching must be positive.")
-        )
-      opt[Int]('b', "b")
-        .text(s"length of a hash for sketching, preferably to be power of 2. default: ${defaultParams.b}")
-        .action((x, c) => c.copy(b = x))
-        .validate(x =>
-          if (x > 0) success
-          else failure("The length of a hash b for sketching must be positive.")
-        )
 
       opt[String]('t', "inputType")
         .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
@@ -178,37 +156,16 @@ object SpectralLDA {
       case "obj" =>
         (sc.objectFile[(Long, SparseVector[Double])](params.input.mkString(",")), Array[String]())
     }
-
     println("Finished reading data.")
 
     println("Start ALS algorithm for tensor decomposition...")
-    val (beta, alpha, _, _) = if (params.sketching) {
-      println("Running tensor decomposition via sketching...")
-      val sketcher = TensorSketcher[Double, Double](
-        n = Seq(params.k, params.k, params.k),
-        B = params.B,
-        b = params.b
-      )
-      val lda = new TensorLDASketch(
-        dimK = params.k,
-        alpha0 = params.topicConcentration,
-        sketcher = sketcher,
-        idfLowerBound = params.idfLowerBound,
-        m2ConditionNumberUB = params.m2ConditionNumberUB,
-        maxIterations = params.maxIterations,
-        randomisedSVD = true
-      )(tolerance = params.tolerance)
-      lda.fit(documents)
-    }
-    else {
-      val lda = new TensorLDA(
-        params.k,
-        params.topicConcentration,
-        params.maxIterations,
-        params.tolerance
-      )
-      lda.fit(documents)
-    }
+    val lda = new TensorLDA(
+      params.k,
+      params.topicConcentration,
+      params.maxIterations,
+      params.tolerance
+    )
+    val (beta, alpha, _, _, _) = lda.fit(documents)
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9

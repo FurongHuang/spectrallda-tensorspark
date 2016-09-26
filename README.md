@@ -2,7 +2,6 @@
 
 ## Summary 
 * This code implements a Spectral (third order tensor decomposition) learning method for learning LDA topic model on Spark.
-* We also implemented a Spectral LDA model via sketching to accelerate tensor building and decomposition.
 * Version: 1.0
 
 ## How do I get set up?
@@ -31,9 +30,6 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
       --M2-cond <value>        stop if the M2 condition number is higher than the given bound. default: 50.0
       -max-iter, --maxIterations <value>
                                number of iterations of learning. default: 200
-      --sketching              Tensor decomposition via sketching
-      -B, --B <value>          number of hash families for sketching. default: 50
-      -b, --b <value>          length of a hash for sketching, preferably to be power of 2. default: 256
       -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
       -o, --outputDir <dir>    output write path. default: .
       --stopWordFile <value>   filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
@@ -45,9 +41,7 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     
     A good choice for `alpha0` is equal to `k` so that we have a non-informative Dirichilet prior for the topic distribution -- any topic distribution is equally likely.
     
-    `--M2-cond` checks the shifted M2 condition number (the ratio of the maximum eigenvalue to the minimum one) and stops if it's above the given bound.
-    
-    We could specify `--sketching` to do the sketching-based decomposition, which is off by default. The associated parameters are the number of hash families `B` (default to 50) and length of a single hash `b` (default to 2^8). These values are a good choice to start with.
+    `--M2-cond` checks the condition number (the ratio of the maximum eigenvalue to the minimum one) of the shifted M2 matrix and stops if it's above the given bound. It allows to quickly check if there's any predominant topic in the input.
     
     The file type `-t` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
     
@@ -57,51 +51,14 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     spark-submit --packages com.github.scopt:scopt_2.11:3.5.0 \
     --class edu.uci.eecs.spectralLDA.SpectralLDA \
     target/scala-2.11/spectrallda-tensor_2.11-1.0.jar \
-    -k 5 -alpha0 5.0 -t libsvm -o results --sketching \
+    -k 5 -alpha0 5.0 -t libsvm -o results \
     src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt
     ```
     
-    It runs with `alpha0=k=5`, enables the sketching, specifies the input file in LIBSVM format, and outputs results in `result/`.
+    It runs with `alpha0 = k = 5`, specifies the input file in LIBSVM format, and outputs results in `result/`.
     
 ### API usage
-For sketching-based decomposition, below is an example snippet.
-
-```scala
-import edu.uci.eecs.spectralLDA.sketch.TensorSketcher
-import edu.uci.eecs.spectralLDA.algorithm.TensorLDASketch
-import breeze.linalg._
-
-// The sketcher that hashes a tensor into B-by-b matrix,
-// where B is the number of hash families, b is the length of
-// a single hash
-val sketcher = TensorSketcher[Double, Double](
-  n = Seq(params.k, params.k, params.k),
-  B = params.B,
-  b = params.b
-)
-
-// The sketching-based fitting algorithm 
-val lda = new TensorLDASketch(
-  dimK = params.k,
-  alpha0 = params.topicConcentration,
-  sketcher = sketcher,
-  idfLowerBound = value,            // optional, default: 1.0
-  m2ConditionNumberUB = value,      // optional, default: infinity
-  maxIterations = 200,              // optional, default: 200
-  randomisedSVD = true              // optional, default: true
-)(tolerance = params.tolerance)     // optional, default: 1e-9
-
-// Fit against the documents
-// beta is the V-by-k matrix, where V is the vocabulary size, 
-// k is the number of topics. It stores the word distribution 
-// per topic column-wise
-// alpha is the length-k Dirichlet prior for the topic distribution
-// eigvecM2 is the V-by-k matrix for the top k eigenvectors of M2
-// eigvalM2 is the length-k vector for the top k eigenvalues of M2
-val (beta: DenseMatrix[Double], alpha: DenseVector[Double], eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double]) = lda.fit(documents)
-```
-
-For non-sketching-based decomposition, the usage is simpler.
+The API is designed following the lines of the Spark built-in `LDA` class.
 
 ```scala
 import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
@@ -123,7 +80,10 @@ val lda = new TensorLDA(
 // alpha is the length-k Dirichlet prior for the topic distribution
 // eigvecM2 is the V-by-k matrix for the top k eigenvectors of M2
 // eigvalM2 is the length-k vector for the top k eigenvalues of M2
-val (beta: DenseMatrix[Double], alpha: DenseVector[Double], eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double]) = lda.fit(documents)
+// m1 is the length-V vector for the average word distribution
+val (beta: DenseMatrix[Double], alpha: DenseVector[Double], 
+  eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double],
+  m1: DenseVector[Double]) = lda.fit(documents)
 ```
 
 If one just wants to decompose a 3rd-order symmetric tensor into the sum of rank-1 tensors, we could do
@@ -204,7 +164,6 @@ If we open them simply via `sc.wholeTextFiles()` the system will spend forever l
     
 ## References
 * White Paper: http://newport.eecs.uci.edu/anandkumar/pubs/whitepaper.pdf
-* Fast and Guaranteed Tensor Decomposition via Sketching: http://arxiv.org/abs/1506.04448
 * New York Times Result Visualization: http://newport.eecs.uci.edu/anandkumar/Lab/Lab_sub/NewYorkTimes3.html
 
 ## Who do I talk to?
