@@ -31,9 +31,6 @@ object SpectralLDA {
                              maxIterations: Int = 200,
                              tolerance: Double = 1e-9,
                              vocabSize: Int = -1,
-                             sketching: Boolean = false,
-                             B: Int = 50,
-                             b: Int = Math.pow(2, 8).toInt,
                              outputDir: String = ".",
                              stopWordFile: String = "src/main/resources/Data/datasets/StopWords_common.txt"
                           )
@@ -95,24 +92,6 @@ object SpectralLDA {
         .validate(x =>
           if (x == -1 || x > 0) success
           else failure("vocabSize must be -1 for all or positive."))
-
-      opt[Unit]("sketching")
-        .text("Tensor decomposition via sketching")
-        .action((_, c) => c.copy(sketching = true))
-      opt[Int]('B', "B")
-        .text(s"number of hash families for sketching. default: ${defaultParams.B}")
-        .action((x, c) => c.copy(B = x))
-        .validate(x =>
-          if (x > 0) success
-          else failure("The number of hash families B for sketching must be positive.")
-        )
-      opt[Int]('b', "b")
-        .text(s"length of a hash for sketching, preferably to be power of 2. default: ${defaultParams.b}")
-        .action((x, c) => c.copy(b = x))
-        .validate(x =>
-          if (x > 0) success
-          else failure("The length of a hash b for sketching must be positive.")
-        )
 
       opt[String]('t', "inputType")
         .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
