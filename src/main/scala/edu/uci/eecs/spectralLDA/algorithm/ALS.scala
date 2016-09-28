@@ -43,11 +43,12 @@ class ALS(dimK: Int,
     * Compute the best approximating rank-$k$ tensor $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
     *
     * @param randBasis   default random seed
-    * @return            dimK-by-dimK matrix with all the $beta_i$ as columns,
+    * @return            three dimK-by-dimK matrices with all the $beta_i$ as columns,
     *                    length-dimK vector for all the eigenvalues
     */
   def run(implicit randBasis: RandBasis = Rand, restarts: Int = 5)
-     : (DenseMatrix[Double], DenseVector[Double])={
+     : (DenseMatrix[Double], DenseMatrix[Double],
+        DenseMatrix[Double], DenseVector[Double])={
     assert(restarts > 0, "Number of restarts for ALS must be positive.")
 
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
@@ -111,7 +112,7 @@ class ALS(dimK: Int,
       }
     }
 
-    (optimalA, optimalLambda)
+    (optimalA, optimalB, optimalC, optimalLambda)
   }
 
   private def updateALSIteration(thirdOrderMoments: DenseMatrix[Double],
