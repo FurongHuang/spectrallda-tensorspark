@@ -6,11 +6,9 @@ package edu.uci.eecs.spectralLDA.algorithm
 * Created by Furong Huang on 11/2/15.
 */
 
-import breeze.linalg.qr.QR
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
 import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, qr}
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
-import sun.management.snmp.jvminstr.JvmThreadInstanceEntryImpl.ThreadStateMap.Byte0
 
 /** Tensor decomposition by Alternating Least Square (ALS)
   *
