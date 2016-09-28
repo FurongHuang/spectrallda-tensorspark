@@ -6,9 +6,11 @@ package edu.uci.eecs.spectralLDA.algorithm
 * Created by Furong Huang on 11/2/15.
 */
 
+import breeze.linalg.qr.QR
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
-import breeze.linalg.{*, DenseMatrix, DenseVector, norm, max, min}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, qr}
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
+import sun.management.snmp.jvminstr.JvmThreadInstanceEntryImpl.ThreadStateMap.Byte0
 
 /** Tensor decomposition by Alternating Least Square (ALS)
   *
@@ -44,41 +46,72 @@ class ALS(dimK: Int,
     * @return            dimK-by-dimK matrix with all the $beta_i$ as columns,
     *                    length-dimK vector for all the eigenvalues
     */
-  def run(implicit randBasis: RandBasis = Rand)
+  def run(implicit randBasis: RandBasis = Rand, restarts: Int = 5)
      : (DenseMatrix[Double], DenseVector[Double])={
-    val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
-    var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var C: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
+    assert(restarts > 0, "Number of restarts for ALS must be positive.")
 
+    val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
+
+    var optimalA = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalB = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalC = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalLambda = DenseVector.zeros[Double](dimK)
+
+    var reconstructedLoss: Double = 0.0
+    var optimalReconstructedLoss: Double = Double.PositiveInfinity
+
+    var A: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
+    var B: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
+    var C: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
     var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
     var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
 
-    println("Start ALS iterations...")
-    var iter: Int = 0
-    while ((iter == 0) ||
-      ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
-      A_prev = A.copy
+    for (s <- 0 until restarts) {
+      val qr.QR(a0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+      val qr.QR(b0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+      val qr.QR(c0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
 
-      // println("Mode A...")
-      A = updateALSIteration(thirdOrderMoments, B, C)
-      lambda = norm(A(::, *)).toDenseVector
-      println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
-      A = AlgebraUtil.matrixNormalization(A)
+      A = a0
+      B = b0
+      C = c0
 
-      // println("Mode B...")
-      B = updateALSIteration(thirdOrderMoments, C, A)
-      B = AlgebraUtil.matrixNormalization(B)
+      println("Start ALS iterations...")
+      var iter: Int = 0
+      while ((iter == 0) ||
+        ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
+        A_prev = A.copy
 
-      // println("Mode C...")
-      C = updateALSIteration(thirdOrderMoments, A, B)
-      C = AlgebraUtil.matrixNormalization(C)
+        // println("Mode A...")
+        A = updateALSIteration(thirdOrderMoments, B, C)
+        lambda = norm(A(::, *)).toDenseVector
+        println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
+        A = AlgebraUtil.matrixNormalization(A)
 
-      iter += 1
+        // println("Mode B...")
+        B = updateALSIteration(thirdOrderMoments, C, A)
+        B = AlgebraUtil.matrixNormalization(B)
+
+        // println("Mode C...")
+        C = updateALSIteration(thirdOrderMoments, A, B)
+        C = AlgebraUtil.matrixNormalization(C)
+
+        iter += 1
+      }
+      println("Finished ALS iterations.")
+
+      reconstructedLoss = TensorOps.dmatrixNorm(thirdOrderMoments - A * diag(lambda) * TensorOps.krprod(C, B).t)
+      println(s"Reconstructed loss: $reconstructedLoss\tOptimal reconstructed loss: $optimalReconstructedLoss")
+
+      if (reconstructedLoss < optimalReconstructedLoss) {
+        optimalA = A
+        optimalB = B
+        optimalC = C
+        optimalLambda = lambda
+        optimalReconstructedLoss = reconstructedLoss
+      }
     }
-    println("Finished ALS iterations.")
 
-    (A, lambda)
+    (optimalA, optimalLambda)
   }
 
   private def updateALSIteration(thirdOrderMoments: DenseMatrix[Double],
