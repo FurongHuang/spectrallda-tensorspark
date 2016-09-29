@@ -1,6 +1,6 @@
 package edu.uci.eecs.spectralLDA.utils
 
-import breeze.linalg.{DenseMatrix, DenseVector, max}
+import breeze.linalg.{DenseMatrix, DenseVector, max, min}
 
 import scala.util.control.Breaks._
 import scalaxy.loops._
@@ -11,10 +11,10 @@ object NonNegativeAdjustment {
     val M_onSimplex = DenseMatrix.zeros[Double](M.rows, M.cols)
 
     for(i <- 0 until M.cols optimized){
-      val (projectedVector, theta) = simplexProj(M(::, i))
-      val (projectedVectorReversedSign, thetaReversedSign) = simplexProj(- M(::, i))
+      val (projectedVector, theta) = simplexProj(M(::, i) - min(M(::, i)))
+      val (projectedVectorReversedSign, thetaReversedSign) = simplexProj(- M(::, i) - min(- M(::, i)))
 
-      if (theta > thetaReversedSign) {
+      if (theta < thetaReversedSign) {
         M_onSimplex(::, i) := projectedVector
       }
       else {
