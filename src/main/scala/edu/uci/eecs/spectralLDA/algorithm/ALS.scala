@@ -110,9 +110,9 @@ class ALS(dimK: Int,
     (optimalA, optimalB, optimalC, optimalLambda)
   }
 
-  private def updateALSIteration(thirdOrderMoments: DenseMatrix[Double],
-                                 B: DenseMatrix[Double],
-                                 C: DenseMatrix[Double]): DenseMatrix[Double] = {
-    thirdOrderMoments * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+  private def updateALSIteration(unfoldedM3: DenseMatrix[Double],
+                                  B: DenseMatrix[Double],
+                                  C: DenseMatrix[Double]): DenseMatrix[Double] = {
+    unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
   }
 }
