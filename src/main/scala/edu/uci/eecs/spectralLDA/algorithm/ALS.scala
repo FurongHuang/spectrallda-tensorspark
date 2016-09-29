@@ -59,20 +59,17 @@ class ALS(dimK: Int,
     var reconstructedLoss: Double = 0.0
     var optimalReconstructedLoss: Double = Double.PositiveInfinity
 
-    var A: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
-    var B: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
-    var C: DenseMatrix[Double] = DenseMatrix.zeros[Double](dimK, dimK)
-    var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
-    var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
-
     for (s <- 0 until restarts) {
       val qr.QR(a0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
       val qr.QR(b0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
       val qr.QR(c0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
 
-      A = a0
-      B = b0
-      C = c0
+      var A = a0
+      var B = b0
+      var C = c0
+
+      var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
+      var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
 
       println("Start ALS iterations...")
       var iter: Int = 0
