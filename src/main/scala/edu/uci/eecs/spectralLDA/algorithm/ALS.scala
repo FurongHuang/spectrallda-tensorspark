@@ -7,7 +7,7 @@ package edu.uci.eecs.spectralLDA.algorithm
 */
 
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
-import breeze.linalg.{*, DenseMatrix, DenseVector, diag, max, min, norm, qr}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, inv, max, min, norm, qr}
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
 /** Tensor decomposition by Alternating Least Square (ALS)
@@ -77,19 +77,19 @@ class ALS(dimK: Int,
         ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
         A_prev = A.copy
 
-        // println("Mode A...")
-        A = updateALSIteration(thirdOrderMoments, B, C)
-        lambda = norm(A(::, *)).toDenseVector
+        val (updatedA, updatedLambda1) = updateOrthoALSIteration1(thirdOrderMoments, B, C)
+        A = updatedA
+        lambda = updatedLambda1
+
+        val (updatedB, updatedLambda2) = updateOrthoALSIteration1(thirdOrderMoments, C, A)
+        B = updatedB
+        lambda = updatedLambda2
+
+        val (updatedC, updatedLambda3) = updateOrthoALSIteration1(thirdOrderMoments, A, B)
+        C = updatedC
+        lambda = updatedLambda3
+
         println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
-        A = AlgebraUtil.matrixNormalization(A)
-
-        // println("Mode B...")
-        B = updateALSIteration(thirdOrderMoments, C, A)
-        B = AlgebraUtil.matrixNormalization(B)
-
-        // println("Mode C...")
-        C = updateALSIteration(thirdOrderMoments, A, B)
-        C = AlgebraUtil.matrixNormalization(C)
 
         iter += 1
       }
@@ -111,8 +111,42 @@ class ALS(dimK: Int,
   }
 
   private def updateALSIteration(unfoldedM3: DenseMatrix[Double],
-                                  B: DenseMatrix[Double],
-                                  C: DenseMatrix[Double]): DenseMatrix[Double] = {
-    unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+                                 B: DenseMatrix[Double],
+                                 C: DenseMatrix[Double]): (DenseMatrix[Double], DenseVector[Double]) = {
+    val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+    val lambda = norm(updatedA(::, *)).toDenseVector
+    (AlgebraUtil.matrixNormalization(updatedA), lambda)
+  }
+
+  private def updateOrthoALSIteration1(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+                                      (implicit nonOrthoPenalty: Double = 10.0)
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
+    val qr.QR(q, _) = qr(updatedA)
+    (q, lambda)
+  }
+
+  private def updateOrthoALSIteration2(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+    val qr.QR(q, r) = qr(updatedA)
+    (q, diag(r))
+  }
+
+  private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+                                      (implicit penalty: Double = 0.5)
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
+
+    val h = DenseMatrix.eye[Double](dimK) + penalty * (updatedA.t * updatedA - DenseMatrix.eye[Double](dimK))
+    val adjustedA = (inv(h) * updatedA.t).t
+
+    (adjustedA, lambda)
   }
 }
