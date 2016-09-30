@@ -1,5 +1,6 @@
 package edu.uci.eecs.spectralLDA
 
+import breeze.linalg.sum
 import org.apache.spark.{SparkConf, SparkContext}
 import edu.uci.eecs.spectralLDA.algorithm._
 import org.apache.spark.rdd._
@@ -40,7 +41,8 @@ object CVLogPerplexity {
     val augBeta = breeze.linalg.DenseMatrix.zeros[Double](beta.rows, k + 1)
     val augAlpha = breeze.linalg.DenseVector.ones[Double](alpha.length + 1)
     augBeta(::, 0 until k) := beta
-    augBeta(::, k) := m1
+    val dummyTopic = m1 + 0.1 * breeze.linalg.DenseVector.ones[Double](beta.rows) / beta.rows.toDouble
+    augBeta(::, k) := dummyTopic / sum(dummyTopic)
     augAlpha(0 until k) := alpha
 
     val tensorLDAModel = new TensorLDAModel(augBeta, augAlpha)
