@@ -77,15 +77,15 @@ class ALS(dimK: Int,
         ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
         A_prev = A.copy
 
-        val (updatedA, updatedLambda1) = updateOrthoALSIteration1(thirdOrderMoments, B, C)
+        val (updatedA, updatedLambda1) = updateOrthoALSIteration3(thirdOrderMoments, B, C)
         A = updatedA
         lambda = updatedLambda1
 
-        val (updatedB, updatedLambda2) = updateOrthoALSIteration1(thirdOrderMoments, C, A)
+        val (updatedB, updatedLambda2) = updateOrthoALSIteration3(thirdOrderMoments, C, A)
         B = updatedB
         lambda = updatedLambda2
 
-        val (updatedC, updatedLambda3) = updateOrthoALSIteration1(thirdOrderMoments, A, B)
+        val (updatedC, updatedLambda3) = updateOrthoALSIteration3(thirdOrderMoments, A, B)
         C = updatedC
         lambda = updatedLambda3
 
@@ -140,13 +140,27 @@ class ALS(dimK: Int,
   private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
-                                      (implicit penalty: Double = 0.5)
+                                      (implicit penalty: Double = 0.5,
+                                       step: Double = 1e-3,
+                                       maxIter: Int = 50,
+                                       tol: Double = 1e-3)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
+    var orthoA = updatedA.copy
+    var nextOrthoA = updatedA.copy
 
-    val h = DenseMatrix.eye[Double](dimK) + penalty * (updatedA.t * updatedA - DenseMatrix.eye[Double](dimK))
-    val adjustedA = (inv(h) * updatedA.t).t
+    var i = 0
+    val eyeK = DenseMatrix.eye[Double](dimK)
+    while ((i == 0) || (i < maxIter &&
+      TensorOps.dmatrixNorm(nextOrthoA - orthoA) > tol * TensorOps.dmatrixNorm(orthoA))) {
+      orthoA = nextOrthoA
 
-    (adjustedA, lambda)
+      val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
+      nextOrthoA = orthoA - step * (orthoA * h - updatedA)
+
+      i += 1
+    }
+
+    (nextOrthoA, lambda)
   }
 }
