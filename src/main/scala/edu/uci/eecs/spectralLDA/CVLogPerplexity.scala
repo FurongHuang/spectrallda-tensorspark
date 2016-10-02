@@ -65,7 +65,7 @@ object CVLogPerplexity {
       .setMiniBatchFraction(0.05)
     val lda = new LDA()
       .setOptimizer(ldaOptimizer)
-      .setMaxIterations(60)
+      .setMaxIterations(80)
       .setK(k)
       .setDocConcentration(alpha0 / k.toDouble)
 
