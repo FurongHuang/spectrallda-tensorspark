@@ -140,10 +140,13 @@ class ALS(dimK: Int,
   private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
-                                      (implicit penalty: Double = 0.5,
+                                      (implicit
+                                       randBasis: RandBasis = Rand,
+                                       noisySGD: Boolean = true,
+                                       penalty: Double = 10.0,
                                        step: Double = 1e-3,
-                                       maxIter: Int = 50,
-                                       tol: Double = 1e-3)
+                                       maxIter: Int = 100,
+                                       tol: Double = 1e-4)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
     var orthoA = updatedA.copy
@@ -151,16 +154,27 @@ class ALS(dimK: Int,
 
     var i = 0
     val eyeK = DenseMatrix.eye[Double](dimK)
-    while ((i == 0) || (i < maxIter &&
-      TensorOps.dmatrixNorm(nextOrthoA - orthoA) > tol * TensorOps.dmatrixNorm(orthoA))) {
-      orthoA = nextOrthoA
+    val gaussian = new Gaussian(mu = 0.0, sigma = 1.0)
 
-      val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
-      nextOrthoA = orthoA - step * (orthoA * h - updatedA)
+    if (TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK) / dimK.toDouble > 1e-4) {
+      while ((i == 0) || (i < maxIter &&
+        TensorOps.dmatrixNorm(nextOrthoA - orthoA) > tol * TensorOps.dmatrixNorm(orthoA))) {
+        orthoA = nextOrthoA
 
-      i += 1
+        val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
+        val grad = orthoA * h - updatedA
+        if (noisySGD) {
+          grad += DenseMatrix.rand[Double](dimK, dimK, gaussian) * 1e-6
+        }
+        nextOrthoA = orthoA - step * grad
+
+        i += 1
+      }
     }
 
+    val normPrior = TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK)
+    val normPost = TensorOps.dmatrixNorm(nextOrthoA.t * nextOrthoA - eyeK)
+    println(s"norm(A^T A-I) prior proximal op: ${normPrior}\tpost proximal op: ${normPost}\tProximal steps: $i")
     (nextOrthoA, lambda)
   }
 }
