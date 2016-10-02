@@ -141,8 +141,6 @@ class ALS(dimK: Int,
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
                                       (implicit
-                                       randBasis: RandBasis = Rand,
-                                       noisySGD: Boolean = true,
                                        penalty: Double = 10.0,
                                        step: Double = 1e-3,
                                        maxIter: Int = 100,
@@ -154,7 +152,6 @@ class ALS(dimK: Int,
 
     var i = 0
     val eyeK = DenseMatrix.eye[Double](dimK)
-    val gaussian = new Gaussian(mu = 0.0, sigma = 1.0)
 
     if (TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK) / dimK.toDouble > 1e-4) {
       while ((i == 0) || (i < maxIter &&
@@ -163,9 +160,7 @@ class ALS(dimK: Int,
 
         val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
         val grad = orthoA * h - updatedA
-        if (noisySGD) {
-          grad += DenseMatrix.rand[Double](dimK, dimK, gaussian) * 1e-6
-        }
+
         nextOrthoA = orthoA - step * grad
 
         i += 1
