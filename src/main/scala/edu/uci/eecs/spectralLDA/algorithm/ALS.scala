@@ -77,15 +77,15 @@ class ALS(dimK: Int,
         ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
         A_prev = A.copy
 
-        val (updatedA, updatedLambda1) = updateOrthoALSIteration3(thirdOrderMoments, B, C)
+        val (updatedA, updatedLambda1) = updateALSIteration(thirdOrderMoments, B, C)
         A = updatedA
         lambda = updatedLambda1
 
-        val (updatedB, updatedLambda2) = updateOrthoALSIteration3(thirdOrderMoments, C, A)
+        val (updatedB, updatedLambda2) = updateALSIteration(thirdOrderMoments, C, A)
         B = updatedB
         lambda = updatedLambda2
 
-        val (updatedC, updatedLambda3) = updateOrthoALSIteration3(thirdOrderMoments, A, B)
+        val (updatedC, updatedLambda3) = updateALSIteration(thirdOrderMoments, A, B)
         C = updatedC
         lambda = updatedLambda3
 
