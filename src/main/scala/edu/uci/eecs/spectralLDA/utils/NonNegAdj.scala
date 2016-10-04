@@ -7,6 +7,21 @@ import scalaxy.loops._
 import scala.language.postfixOps
 
 object NonNegativeAdjustment {
+  /** Projection of one eigenvector matrix from the CP decomposition into l1-simplex
+    *
+    * Given an eigenvector w, we have to decide whether to return proj(w) or proj(-w) as
+    * the result.
+    *
+    * We notice that the Duchi algorithm produces the same result for any w with a
+    * parallel shift. We thus compute proj(w - min(w)) and proj((-w) - min(-w)) and compare
+    * the shift "theta" from the Duchi algorithm. We retain the one with smaller shift "theta".
+    *
+    * Ref:
+    * Duchi, John, Efficient Projections onto the l1-Ball for Learning in High Dimensions, 2008
+    *
+    * @param M     One eigenvector matrix from the result of CP decomposition
+    * @return      {best of proj(w) or proj(-w), where w is each column of M}
+    */
   def simplexProj_Matrix(M :DenseMatrix[Double]): DenseMatrix[Double] ={
     val M_onSimplex = DenseMatrix.zeros[Double](M.rows, M.cols)
 
