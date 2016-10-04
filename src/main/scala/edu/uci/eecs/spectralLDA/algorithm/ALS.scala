@@ -118,6 +118,10 @@ class ALS(dimK: Int,
     (AlgebraUtil.matrixNormalization(updatedA), lambda)
   }
 
+  /** Eigenvectors orthogonality correction
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
   private def updateOrthoALSIteration1(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
@@ -128,6 +132,10 @@ class ALS(dimK: Int,
     (q, lambda)
   }
 
+  /** Eigenvectors orthogonality correction
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
   private def updateOrthoALSIteration2(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
@@ -137,6 +145,16 @@ class ALS(dimK: Int,
     (q, diag(r))
   }
 
+  /** Eigenvectors orthogonality correction via ADMM
+    *
+    * After the plain ALS update A^*, we try to minimize
+    *
+    *    min norm(a_i - a_i^*) + penalty * (a_i^T a_i - 1) ^2 + penalty * \sum_{j\neq i}(a_i^T a_j) ^ 2
+    *
+    * where a_i is the i-th row of A, a_i^* is the i-th row of A^*.
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
   private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
                                        C: DenseMatrix[Double])
