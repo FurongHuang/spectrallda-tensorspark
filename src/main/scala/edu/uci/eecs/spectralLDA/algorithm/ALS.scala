@@ -7,7 +7,7 @@ package edu.uci.eecs.spectralLDA.algorithm
 */
 
 import edu.uci.eecs.spectralLDA.utils.{AlgebraUtil, TensorOps}
-import breeze.linalg.{*, DenseMatrix, DenseVector, norm, max, min}
+import breeze.linalg.{*, DenseMatrix, DenseVector, diag, inv, max, min, norm, qr}
 import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
 
 /** Tensor decomposition by Alternating Least Square (ALS)
@@ -41,49 +41,153 @@ class ALS(dimK: Int,
     * Compute the best approximating rank-$k$ tensor $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
     *
     * @param randBasis   default random seed
-    * @return            dimK-by-dimK matrix with all the $beta_i$ as columns,
+    * @return            three dimK-by-dimK matrices with all the $beta_i$ as columns,
     *                    length-dimK vector for all the eigenvalues
     */
-  def run(implicit randBasis: RandBasis = Rand)
-     : (DenseMatrix[Double], DenseVector[Double])={
+  def run(implicit randBasis: RandBasis = Rand, restarts: Int = 5)
+     : (DenseMatrix[Double], DenseMatrix[Double],
+        DenseMatrix[Double], DenseVector[Double])={
+    assert(restarts > 0, "Number of restarts for ALS must be positive.")
+
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
-    var A: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var B: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
-    var C: DenseMatrix[Double] = DenseMatrix.rand[Double](dimK, dimK, gaussian)
 
-    var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
-    var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
+    var optimalA = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalB = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalC = DenseMatrix.zeros[Double](dimK, dimK)
+    var optimalLambda = DenseVector.zeros[Double](dimK)
 
-    println("Start ALS iterations...")
-    var iter: Int = 0
-    while ((iter == 0) ||
-      ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
-      A_prev = A.copy
+    var reconstructedLoss: Double = 0.0
+    var optimalReconstructedLoss: Double = Double.PositiveInfinity
 
-      // println("Mode A...")
-      A = updateALSIteration(thirdOrderMoments, B, C)
-      lambda = norm(A(::, *)).toDenseVector
-      println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
-      A = AlgebraUtil.matrixNormalization(A)
+    for (s <- 0 until restarts) {
+      val qr.QR(a0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+      val qr.QR(b0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
+      val qr.QR(c0, _) = qr(DenseMatrix.rand[Double](dimK, dimK, gaussian))
 
-      // println("Mode B...")
-      B = updateALSIteration(thirdOrderMoments, C, A)
-      B = AlgebraUtil.matrixNormalization(B)
+      var A = a0
+      var B = b0
+      var C = c0
 
-      // println("Mode C...")
-      C = updateALSIteration(thirdOrderMoments, A, B)
-      C = AlgebraUtil.matrixNormalization(C)
+      var A_prev = DenseMatrix.zeros[Double](dimK, dimK)
+      var lambda: breeze.linalg.DenseVector[Double] = DenseVector.zeros[Double](dimK)
 
-      iter += 1
+      println("Start ALS iterations...")
+      var iter: Int = 0
+      while ((iter == 0) ||
+        ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
+        A_prev = A.copy
+
+        val (updatedA, updatedLambda1) = updateALSIteration(thirdOrderMoments, B, C)
+        A = updatedA
+        lambda = updatedLambda1
+
+        val (updatedB, updatedLambda2) = updateALSIteration(thirdOrderMoments, C, A)
+        B = updatedB
+        lambda = updatedLambda2
+
+        val (updatedC, updatedLambda3) = updateALSIteration(thirdOrderMoments, A, B)
+        C = updatedC
+        lambda = updatedLambda3
+
+        println(s"iter $iter\tlambda: max ${max(lambda)}, min ${min(lambda)}")
+
+        iter += 1
+      }
+      println("Finished ALS iterations.")
+
+      reconstructedLoss = TensorOps.dmatrixNorm(thirdOrderMoments - A * diag(lambda) * TensorOps.krprod(C, B).t)
+      println(s"Reconstructed loss: $reconstructedLoss\tOptimal reconstructed loss: $optimalReconstructedLoss")
+
+      if (reconstructedLoss < optimalReconstructedLoss) {
+        optimalA = A
+        optimalB = B
+        optimalC = C
+        optimalLambda = lambda
+        optimalReconstructedLoss = reconstructedLoss
+      }
     }
-    println("Finished ALS iterations.")
 
-    (A, lambda)
+    (optimalA, optimalB, optimalC, optimalLambda)
   }
 
-  private def updateALSIteration(thirdOrderMoments: DenseMatrix[Double],
+  private def updateALSIteration(unfoldedM3: DenseMatrix[Double],
                                  B: DenseMatrix[Double],
-                                 C: DenseMatrix[Double]): DenseMatrix[Double] = {
-    thirdOrderMoments * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+                                 C: DenseMatrix[Double]): (DenseMatrix[Double], DenseVector[Double]) = {
+    val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+    val lambda = norm(updatedA(::, *)).toDenseVector
+    (AlgebraUtil.matrixNormalization(updatedA), lambda)
+  }
+
+  /** Eigenvectors orthogonality correction
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
+  private def updateOrthoALSIteration1(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+                                      (implicit nonOrthoPenalty: Double = 10.0)
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
+    val qr.QR(q, _) = qr(updatedA)
+    (q, lambda)
+  }
+
+  /** Eigenvectors orthogonality correction
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
+  private def updateOrthoALSIteration2(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
+    val qr.QR(q, r) = qr(updatedA)
+    (q, diag(r))
+  }
+
+  /** Eigenvectors orthogonality correction via ADMM
+    *
+    * After the plain ALS update A^*, we try to minimize
+    *
+    *    min norm(a_i - a_i^*) + penalty * (a_i^T a_i - 1) ^2 + penalty * \sum_{j\neq i}(a_i^T a_j) ^ 2
+    *
+    * where a_i is the i-th row of A, a_i^* is the i-th row of A^*.
+    *
+    * Not called by run() as they could cost the global convergence of ALS
+    */
+  private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
+                                       B: DenseMatrix[Double],
+                                       C: DenseMatrix[Double])
+                                      (implicit
+                                       penalty: Double = 10.0,
+                                       step: Double = 1e-3,
+                                       maxIter: Int = 100,
+                                       tol: Double = 1e-4)
+  : (DenseMatrix[Double], DenseVector[Double]) = {
+    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
+    var orthoA = updatedA.copy
+    var nextOrthoA = updatedA.copy
+
+    var i = 0
+    val eyeK = DenseMatrix.eye[Double](dimK)
+
+    if (TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK) / dimK.toDouble > 1e-4) {
+      while ((i == 0) || (i < maxIter &&
+        TensorOps.dmatrixNorm(nextOrthoA - orthoA) > tol * TensorOps.dmatrixNorm(orthoA))) {
+        orthoA = nextOrthoA
+
+        val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
+        val grad = orthoA * h - updatedA
+
+        nextOrthoA = orthoA - step * grad
+
+        i += 1
+      }
+    }
+
+    val normPrior = TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK)
+    val normPost = TensorOps.dmatrixNorm(nextOrthoA.t * nextOrthoA - eyeK)
+    println(s"norm(A^T A-I) prior proximal op: ${normPrior}\tpost proximal op: ${normPost}\tProximal steps: $i")
+    (nextOrthoA, lambda)
   }
 }

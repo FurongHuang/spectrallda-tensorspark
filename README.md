@@ -103,7 +103,7 @@ val als = new ALS(
 
 // beta is the k-by-k matrix with $\beta_i$ as columns
 // alpha is the vector for $(\alpha_1,\ldots,\alpha_k)$
-val (beta: DenseMatrix[Double], alpha: DenseVector[Double]) = als.run
+val (beta: DenseMatrix[Double], _, _, alpha: DenseVector[Double]) = als.run
 ```
 
 ### Set up Spark 2.0.0 to use system native BLAS/LAPACK

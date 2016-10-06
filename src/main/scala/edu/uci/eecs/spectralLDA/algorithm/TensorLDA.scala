@@ -57,7 +57,7 @@ class TensorLDA(dimK: Int,
       maxIterations = maxIterations
     )
 
-    val (nu: DenseMatrix[Double], lambda: DenseVector[Double]) = myALS.run
+    val (nu: DenseMatrix[Double], _, _, lambda: DenseVector[Double]) = myALS.run
 
     // unwhiten the results
     // unwhitening matrix: $(W^T)^{-1}=U\Sigma^{1/2}$
