@@ -32,7 +32,7 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
   */
 class ALS(dimK: Int,
           thirdOrderMoments: DenseMatrix[Double],
-          maxIterations: Int = 200,
+          maxIterations: Int = 500,
           tol: Double = 1e-6,
           restarts: Int = 5)
   extends Serializable {

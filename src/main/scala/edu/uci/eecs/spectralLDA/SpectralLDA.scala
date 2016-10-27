@@ -27,9 +27,9 @@ object SpectralLDA {
                              k: Int = 1,
                              topicConcentration: Double = 5.0,
                              idfLowerBound: Double = 1.0,
-                             m2ConditionNumberUB: Double = 50.0,
-                             maxIterations: Int = 200,
-                             tolerance: Double = 1e-9,
+                             m2ConditionNumberUB: Double = 1000.0,
+                             maxIterations: Int = 500,
+                             tolerance: Double = 1e-6,
                              vocabSize: Int = -1,
                              outputDir: String = ".",
                              stopWordFile: String = "src/main/resources/Data/datasets/StopWords_common.txt"
@@ -48,22 +48,22 @@ object SpectralLDA {
           if (x > 0) success
           else failure("The number of topics k must be positive.")
         )
-      opt[Double]("topicConcentration").abbr("alpha0").required()
-        .text("the sum of the prior vector for topic distribution e.g. k for a non-informative prior.")
+      opt[Double]("alpha0").required()
+        .text("sum of the topic distribution prior parameter")
         .action((x, c) => c.copy(topicConcentration = x))
         .validate(x =>
           if (x > 0.0) success
           else failure("topicConcentration must be positive.")
         )
 
-      opt[Double]("idfLowerBound").abbr("idf")
+      opt[Double]("idf-lb")
         .text(s"only work on terms with IDF above the lower bound. default: ${defaultParams.idfLowerBound}")
         .action((x, c) => c.copy(idfLowerBound = x))
         .validate(x =>
           if (x >= 1.0) success
           else failure("idfLowerBound must be at least 1.0.")
         )
-      opt[Double]("M2-cond")
+      opt[Double]("M2-cond-num-ub")
         .text(s"stop if the M2 condition number is higher than the given bound. default: ${defaultParams.m2ConditionNumberUB}")
         .action((x, c) => c.copy(m2ConditionNumberUB = x))
         .validate(x =>
@@ -71,15 +71,15 @@ object SpectralLDA {
           else failure("M2 condition number upper bound must be positive.")
         )
 
-      opt[Int]("maxIterations").abbr("max-iter")
+      opt[Int]("max-iter")
         .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
         .validate(x =>
           if (x > 0) success
           else failure("maxIterations must be positive.")
         )
-      opt[Double]("tolerance").abbr("tol").hidden()
-        .text(s"tolerance. default: ${defaultParams.tolerance}")
+      opt[Double]("tol")
+        .text(s"tolerance for the ALS algorithm. default: ${defaultParams.tolerance}")
         .action((x, c) => c.copy(tolerance = x))
         .validate(x =>
           if (x > 0.0) success
@@ -93,21 +93,21 @@ object SpectralLDA {
           if (x == -1 || x > 0) success
           else failure("vocabSize must be -1 for all or positive."))
 
-      opt[String]('t', "inputType")
-        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: ${defaultParams.inputType}""")
+      opt[String]("input-type")
+        .text(s"""type of input files: "obj", "libsvm" or "text". "obj" for serialised RDD[(Long, SparseVector[Double])] file. default: ${defaultParams.inputType}""")
         .action((x, c) => c.copy(inputType = x))
         .validate(x =>
           if (x == "obj" || x == "libsvm" || x == "text") success
           else failure("""inputType must be "obj", "libsvm" or "text".""")
         )
-      opt[String]('o', "outputDir").valueName("<dir>")
+      opt[String]('o', "output-dir").valueName("<dir>")
         .text(s"output write path. default: ${defaultParams.outputDir}")
         .action((x, c) => c.copy(outputDir = x))
         .validate(x =>
           if (Files.exists(Paths.get(x))) success
           else failure(s"Output directory $x doesn't exist.")
         )
-      opt[String]("stopWordFile")
+      opt[String]("stopword-file")
         .text(s"filepath for a list of stopwords. default: ${defaultParams.stopWordFile}")
         .action((x, c) => c.copy(stopWordFile = x))
 
@@ -162,8 +162,10 @@ object SpectralLDA {
     val lda = new TensorLDA(
       params.k,
       params.topicConcentration,
-      params.maxIterations,
-      params.tolerance
+      maxIterations = params.maxIterations,
+      tol = params.tolerance,
+      idfLowerBound = params.idfLowerBound,
+      m2ConditionNumberUB = params.m2ConditionNumberUB
     )
     val (beta, alpha, _, _, _) = lda.fit(documents)
     println("Finished ALS algorithm for tensor decomposition.")

@@ -27,7 +27,7 @@ import org.apache.spark.rdd.RDD
   */
 class TensorLDA(dimK: Int,
                 alpha0: Double,
-                maxIterations: Int = 200,
+                maxIterations: Int = 500,
                 tol: Double = 1e-6,
                 idfLowerBound: Double = 1.0,
                 m2ConditionNumberUB: Double = Double.PositiveInfinity,
