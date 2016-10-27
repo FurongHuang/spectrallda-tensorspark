@@ -59,7 +59,7 @@ object DataCumulant {
                       idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
                       randomisedSVD: Boolean = true)
-                     (implicit randBasis: RandBasis = Rand, tolerance: Double = 1e-9)
+                     (implicit randBasis: RandBasis = Rand)
         : DataCumulant = {
     assert(dimK > 0, "The number of topics dimK must be positive.")
     assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
@@ -137,7 +137,7 @@ object DataCumulant {
     }
 
     println("Start whitening data with dimensionality reduction...")
-    val W: DenseMatrix[Double] = eigenVectors * diag(eigenValues map { x => 1 / (sqrt(x) + tolerance) })
+    val W: DenseMatrix[Double] = eigenVectors * diag(eigenValues map { x => 1 / (sqrt(x) + 1e-9) })
     println("Finished whitening data.")
 
     // We computing separately the first order, second order, 3rd order terms in Eq (25) (26)
