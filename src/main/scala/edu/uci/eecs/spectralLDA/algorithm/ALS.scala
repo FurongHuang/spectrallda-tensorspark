@@ -124,8 +124,8 @@ class ALS(dimK: Int,
     */
   private def updateOrthoALSIteration1(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
-                                       C: DenseMatrix[Double])
-                                      (implicit nonOrthoPenalty: Double = 10.0)
+                                       C: DenseMatrix[Double],
+                                       nonOrthoPenalty: Double = 10.0)
   : (DenseMatrix[Double], DenseVector[Double]) = {
     val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
     val qr.QR(q, _) = qr(updatedA)
@@ -157,8 +157,7 @@ class ALS(dimK: Int,
     */
   private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
                                        B: DenseMatrix[Double],
-                                       C: DenseMatrix[Double])
-                                      (implicit
+                                       C: DenseMatrix[Double],
                                        penalty: Double = 10.0,
                                        step: Double = 1e-3,
                                        maxIter: Int = 100,
