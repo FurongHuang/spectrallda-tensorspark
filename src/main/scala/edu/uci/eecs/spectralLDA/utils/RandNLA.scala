@@ -89,47 +89,6 @@ object RandNLA {
     (u_M2, s_M2)
   }
 
-  /** Nystrom method for randomised eigendecomposition of Hermitian matrix
-    *
-    * Empirically it gives much worse performance than the Randomised Power Iteration method
-    * so not used here.
-    *
-    * Note that
-    *
-    *     A \approx (AQ)(Q^* AQ)^{-1}(AQ)^*
-    *
-    * We first compute the square root of Q^* AQ=CC^*, then perform SVD on
-    * AQ(C^*)^{-1}=USV^{*}. Therefore
-    *
-    *     A \approx US^2 U^*.
-    *
-    *
-    * @param aq product of the original n-by-n matrix A and a n-by-k test matrix
-    * @param q  the n-by-k test matrix
-    * @return   the top k eigenvalues, top k eigenvectors of the original matrix A
-    */
-  def nystrom(aq: DenseMatrix[Double],
-              q: DenseMatrix[Double])
-      : (DenseVector[Double], DenseMatrix[Double]) = {
-    assert(aq.rows == q.rows && aq.cols == q.cols)
-    assert(aq.rows >= aq.cols)
-
-    // Q^* AQ
-    val qaq = q.t * aq
-
-    // Solve for the squared root of Q^* AQ
-    val c = cholesky((qaq + qaq.t) / 2.0)
-
-    // AQC
-    val sqrt_ny = aq * inv(c.t)
-
-    // SVD on AQC
-    val svd.SVD(u2: DenseMatrix[Double], s2: DenseVector[Double], _) = svd.reduced(sqrt_ny)
-
-    // SVD of A
-    (pow(s2, 2.0), u2)
-  }
-
   /** Musco-Musco method for randomised eigendecomposition of Hermitian matrix
     *
     * We could first do the eigendecomposition (AQ)^* AQ=USU^*. If A=HKH^*; apparently
