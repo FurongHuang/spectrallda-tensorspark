@@ -23,27 +23,26 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     Usage: SpectralLDA [options] <input>...
     
       -k, --k <value>          number of topics
-      -alpha0, --topicConcentration <value>
-                               the sum of the prior vector for topic distribution e.g. k for a non-informative prior.
-      -idf, --idfLowerBound <value>
-                               only work on terms with IDF above the lower bound. default: 1.0
-      --M2-cond <value>        stop if the M2 condition number is higher than the given bound. default: 50.0
-      -max-iter, --maxIterations <value>
-                               number of iterations of learning. default: 200
-      -t, --inputType <value>  type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
-      -o, --outputDir <dir>    output write path. default: .
-      --stopWordFile <value>   filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
+      --alpha0 <value>         sum of the topic distribution prior parameter
+      --idf-lb <value>         only work on terms with IDF above the lower bound. default: 1.0
+      --M2-cond-num-ub <value>
+                               stop if the M2 condition number is higher than the given bound. default: 1000.0
+      --max-iter <value>       number of iterations of learning. default: 500
+      --tol <value>            tolerance for the ALS algorithm. default: 1.0E-6
+      --input-type <value>     type of input files: "obj", "libsvm" or "text". "obj" for Hadoop SequenceFile of RDD[(Long, SparseVector[Double])]. default: obj
+      -o, --output-dir <dir>   output write path. default: .
+      --stopword-file <value>  filepath for a list of stopwords. default: src/main/resources/Data/datasets/StopWords_common.txt
       --help                   prints this usage text
-      <input>...               paths of input files    
+      <input>...               paths of input files   
     ```
     
-    The parameters `-k`, `-alpha0` and the input file paths are required, the others are optional.
+    Only `k`, `alpha0` and the input file paths are required parameters.
     
-    A good choice for `alpha0` is equal to `k` so that we have a non-informative Dirichilet prior for the topic distribution -- any topic distribution is equally likely.
+    The higher `alpha0` is relative to `k` the more likely are we to recover only topic-specific words (vs "common" words that would exist in every topic distribution). If `alpha0 = k` we would allow a non-informative prior for the topic distribution, when every `alpha_i = 1.0`.
     
-    `--M2-cond` checks the condition number (the ratio of the maximum eigenvalue to the minimum one) of the shifted M2 matrix and stops if it's above the given bound. It allows to quickly check if there's any predominant topic in the input.
+    `M2-cond-num-ub` checks the condition number (the ratio of the maximum eigenvalue to the minimum one) of the M2 moments matrix and stops if it's above the given bound. It allows to quickly check if there's any predominant topic in the input.
     
-    The file type `-t` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
+    `input-file` could be "text", "libsvm", or "obj": "text" for plain text files, "libsvm" for text files in LIBSVM format, "obj" for Hadoop SequenceFiles storing serialised `RDD[(Long, SparseVector[Double])]`. It is "obj" by default.
     
 3. An example call from command line is
 
@@ -51,7 +50,7 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     spark-submit --packages com.github.scopt:scopt_2.11:3.5.0 \
     --class edu.uci.eecs.spectralLDA.SpectralLDA \
     target/scala-2.11/spectrallda-tensor_2.11-1.0.jar \
-    -k 5 -alpha0 5.0 -t libsvm -o results \
+    -k 5 --alpha0 5.0 --input-type libsvm -o results \
     src/main/resources/Data/datasets/synthetic/samples_train_libsvm.txt
     ```
     
@@ -67,20 +66,22 @@ import breeze.linalg._
 val lda = new TensorLDA(
   dimK = params.k,
   alpha0 = params.topicConcentration,
-  maxIterations = value,            // optional, default: 200
+  maxIterations = value,            // optional, default: 500
+  tol = value,                      // optional, default: 1e-6
   idfLowerBound = value,            // optional, default: 1.0
   m2ConditionNumberUB = value,      // optional, default: infinity
   randomisedSVD = true              // optional, default: true
-)(tolerance = params.tolerance)     // optional, default: 1e-9
+)
 
 // Fit against the documents
 // beta is the V-by-k matrix, where V is the vocabulary size, 
-// k is the number of topics. It stores the word distribution 
-// per topic column-wise
-// alpha is the length-k Dirichlet prior for the topic distribution
+// k is the number of topics. Each column stores the word distribution per topic
+// alpha is the length-k Dirichlet prior parameter for the topic distribution
+
 // eigvecM2 is the V-by-k matrix for the top k eigenvectors of M2
 // eigvalM2 is the length-k vector for the top k eigenvalues of M2
 // m1 is the length-V vector for the average word distribution
+
 val (beta: DenseMatrix[Double], alpha: DenseVector[Double], 
   eigvecM2: DenseMatrix[Double], eigvalM2: DenseVector[Double],
   m1: DenseVector[Double]) = lda.fit(documents)
@@ -95,7 +96,8 @@ import breeze.linalg._
 val als = new ALS(
   dimK = value,
   thirdOrderMoments = value,        // k-by-(k*k) matrix for the unfolded 3rd-order symmetric tensor
-  maxIterations = value             // optional, default: 200
+  maxIterations = value,            // optional, default: 500
+  tol = value,                      // optional, default: 1e-6
 )
 
 // We run ALS to find the best approximating sum of rank-1 tensors such that 
