@@ -21,8 +21,9 @@ object AlgebraUtil {
     A
   }
 
-  def isConverged(oldA: DenseMatrix[Double], newA: DenseMatrix[Double])
-                 (implicit dotThreshold: Double = 0.99): Boolean = {
+  def isConverged(oldA: DenseMatrix[Double],
+                  newA: DenseMatrix[Double],
+                  dotProductThreshold: Double = 0.99): Boolean = {
     if (oldA == null || oldA.size == 0) {
       return false
     }
@@ -30,11 +31,11 @@ object AlgebraUtil {
     val dprod = diag(oldA.t * newA)
     println(s"dot(oldA, newA): ${diag(oldA.t * newA)}")
 
-    all(dprod :> dotThreshold)
+    all(dprod :> dotProductThreshold)
   }
 
   def Cumsum(xs: Array[Double]): Array[Double] = {
     xs.scanLeft(0.0)(_ + _).tail
   }
-
+  
 }

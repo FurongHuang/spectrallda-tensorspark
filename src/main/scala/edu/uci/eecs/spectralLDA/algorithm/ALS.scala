@@ -27,14 +27,22 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
   * @param thirdOrderMoments  dimK-by-(dimK*dimK) matrix for the unfolded 3rd-order moments
   *                           $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
   * @param maxIterations      max iterations for the ALS algorithm
+  * @param tol                tolerance. the dot product threshold is 1-tol
+  * @param restarts           number of restarts of the ALS loop
   */
 class ALS(dimK: Int,
           thirdOrderMoments: DenseMatrix[Double],
-          maxIterations: Int = 200)
+          maxIterations: Int = 200,
+          tol: Double = 1e-6,
+          restarts: Int = 5)
   extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
   assert(thirdOrderMoments.rows == dimK && thirdOrderMoments.cols == dimK * dimK,
     "The thirdOrderMoments must be dimK-by-(dimK * dimK) unfolded matrix")
+
+  assert(maxIterations > 0, "Max iterations must be positive.")
+  assert(tol > 0.0, "tol must be positive and probably close to 0.")
+  assert(restarts > 0, "Number of restarts for ALS must be positive.")
 
   /** Run Alternating Least Squares (ALS)
     *
@@ -44,11 +52,9 @@ class ALS(dimK: Int,
     * @return            three dimK-by-dimK matrices with all the $beta_i$ as columns,
     *                    length-dimK vector for all the eigenvalues
     */
-  def run(implicit randBasis: RandBasis = Rand, restarts: Int = 5)
+  def run(implicit randBasis: RandBasis = Rand)
      : (DenseMatrix[Double], DenseMatrix[Double],
         DenseMatrix[Double], DenseVector[Double])={
-    assert(restarts > 0, "Number of restarts for ALS must be positive.")
-
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
 
     var optimalA = DenseMatrix.zeros[Double](dimK, dimK)
@@ -73,8 +79,8 @@ class ALS(dimK: Int,
 
       println("Start ALS iterations...")
       var iter: Int = 0
-      while ((iter == 0) ||
-        ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
+      while ((iter == 0) || (iter < maxIterations &&
+        !AlgebraUtil.isConverged(A_prev, A, dotProductThreshold = 1 - tol))) {
         A_prev = A.copy
 
         val (updatedA, updatedLambda1) = updateALSIteration(thirdOrderMoments, B, C)

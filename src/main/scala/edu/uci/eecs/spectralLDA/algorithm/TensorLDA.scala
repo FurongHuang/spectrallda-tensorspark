@@ -18,24 +18,24 @@ import org.apache.spark.rdd.RDD
   * @param dimK                 number of topics k
   * @param alpha0               sum of alpha for the Dirichlet prior for topic distribution
   * @param maxIterations        max number of iterations for the ALS algorithm for CP decomposition
+  * @param tol                  tolerance. the dot product threshold in ALS is 1-tol
   * @param idfLowerBound        lower bound of Inverse Document Frequency (IDF) for the words to be taken into account
   * @param m2ConditionNumberUB  upper bound of Condition Number for the shifted M2 matrix, if the empirical
   *                             Condition Number exceeds the uppper bound the code quits with error before computing
   *                             the M3. It allows to quickly check if there're any predominant topics
   * @param randomisedSVD        uses randomised SVD on M2, true by default
-  * @param tolerance            tolerance, 1e-9 by default
   */
 class TensorLDA(dimK: Int,
                 alpha0: Double,
                 maxIterations: Int = 200,
+                tol: Double = 1e-6,
                 idfLowerBound: Double = 1.0,
                 m2ConditionNumberUB: Double = Double.PositiveInfinity,
-                randomisedSVD: Boolean = true)
-               (implicit tolerance: Double = 1e-9)
-                extends Serializable {
+                randomisedSVD: Boolean = true) extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
   assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
   assert(maxIterations > 0, "The number of iterations for ALS must be positive.")
+  assert(tol > 0.0, "tol must be positive and probably close to 0.")
 
   def fit(documents: RDD[(Long, SparseVector[Double])])
          (implicit randBasis: RandBasis = Rand)
@@ -46,15 +46,16 @@ class TensorLDA(dimK: Int,
       dimK,
       alpha0,
       documents,
-      idfLowerBound,
-      m2ConditionNumberUB,
+      idfLowerBound = idfLowerBound,
+      m2ConditionNumberUB = m2ConditionNumberUB,
       randomisedSVD = randomisedSVD
     )
 
     val myALS: ALS = new ALS(
       dimK,
       cumulant.thirdOrderMoments,
-      maxIterations = maxIterations
+      maxIterations = maxIterations,
+      tol = tol
     )
 
     val (nu: DenseMatrix[Double], _, _, lambda: DenseVector[Double]) = myALS.run
