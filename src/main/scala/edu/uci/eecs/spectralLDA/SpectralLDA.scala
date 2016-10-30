@@ -8,7 +8,7 @@ package edu.uci.eecs.spectralLDA
 
 import edu.uci.eecs.spectralLDA.algorithm.TensorLDA
 import edu.uci.eecs.spectralLDA.textprocessing.TextProcessor
-import breeze.linalg.{DenseMatrix, DenseVector, SparseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, SparseVector, sum}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scalaxy.loops._
@@ -26,6 +26,7 @@ object SpectralLDA {
                              inputType: String = "obj", // "libsvm", "text" or "obj"
                              k: Int = 1,
                              topicConcentration: Double = 5.0,
+                             minWordsPerDocument: Int = 0,
                              idfLowerBound: Double = 1.0,
                              m2ConditionNumberUB: Double = 1000.0,
                              maxIterations: Int = 500,
@@ -56,15 +57,18 @@ object SpectralLDA {
           else failure("topicConcentration must be positive.")
         )
 
+      opt[Int]("min-words")
+        .text(s"minimum count of words for every document. default: ${defaultParams.minWordsPerDocument}")
+        .action((x, c) => c.copy(minWordsPerDocument = x))
       opt[Double]("idf-lb")
-        .text(s"only work on terms with IDF above the lower bound. default: ${defaultParams.idfLowerBound}")
+        .text(s"lower bound of the IDF. default: ${defaultParams.idfLowerBound}")
         .action((x, c) => c.copy(idfLowerBound = x))
         .validate(x =>
           if (x >= 1.0) success
           else failure("idfLowerBound must be at least 1.0.")
         )
       opt[Double]("M2-cond-num-ub")
-        .text(s"stop if the M2 condition number is higher than the given bound. default: ${defaultParams.m2ConditionNumberUB}")
+        .text(s"upper bound of the M2 condition number. default: ${defaultParams.m2ConditionNumberUB}")
         .action((x, c) => c.copy(m2ConditionNumberUB = x))
         .validate(x =>
           if (x > 0.0) success
@@ -72,7 +76,7 @@ object SpectralLDA {
         )
 
       opt[Int]("max-iter")
-        .text(s"number of iterations of learning. default: ${defaultParams.maxIterations}")
+        .text(s"number of iterations of ALS. default: ${defaultParams.maxIterations}")
         .action((x, c) => c.copy(maxIterations = x))
         .validate(x =>
           if (x > 0) success
@@ -167,7 +171,11 @@ object SpectralLDA {
       idfLowerBound = params.idfLowerBound,
       m2ConditionNumberUB = params.m2ConditionNumberUB
     )
-    val (beta, alpha, _, _, _) = lda.fit(documents)
+    val (beta, alpha, _, _, _) = lda.fit(
+      documents.filter {
+        case (_, tc) => sum(tc) >= params.minWordsPerDocument
+      }
+    )
     println("Finished ALS algorithm for tensor decomposition.")
 
     val preprocessElapsed: Double = (System.nanoTime() - preprocessStart) / 1e9

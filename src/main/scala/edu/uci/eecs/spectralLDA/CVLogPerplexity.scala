@@ -18,8 +18,12 @@ object CVLogPerplexity {
     val alpha0 = args(3).toDouble
     val maxIterations = args(4).toInt
     val tol = args(5).toDouble
+    val minWords = args(6).toInt
 
     val docs = sc.objectFile[(Long, breeze.linalg.SparseVector[Double])](documentsPath)
+      .filter {
+        case (_, tc) => sum(tc) >= minWords
+      }
 
     for (i <- 0 until cv) {
       val splits = docs.randomSplit(Array[Double](0.9, 0.1))
