@@ -24,6 +24,7 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
     
       -k, --k <value>          number of topics
       --alpha0 <value>         sum of the topic distribution prior parameter
+      --min-words <value>      minimum count of words for every document. default: 0
       --idf-lb <value>         only work on terms with IDF above the lower bound. default: 1.0
       --M2-cond-num-ub <value>
                                stop if the M2 condition number is higher than the given bound. default: 1000.0
