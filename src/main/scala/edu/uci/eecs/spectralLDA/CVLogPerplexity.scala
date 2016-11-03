@@ -16,18 +16,28 @@ object CVLogPerplexity {
     val documentsPath = args(1)
     val k = args(2).toInt
     val alpha0 = args(3).toDouble
+    val maxIterations = args(4).toInt
+    val tol = args(5).toDouble
+    val minWords = args(6).toInt
 
     val docs = sc.objectFile[(Long, breeze.linalg.SparseVector[Double])](documentsPath)
+      .filter {
+        case (_, tc) => sum(tc) >= minWords
+      }
 
     for (i <- 0 until cv) {
       val splits = docs.randomSplit(Array[Double](0.9, 0.1))
-      computeLogLikelihood(splits, k, alpha0)
+      computeLogLikelihood(splits, k, alpha0, maxIterations, tol)
     }
+
+    sc.stop()
   }
 
   def computeLogLikelihood(splits: Array[RDD[(Long, breeze.linalg.SparseVector[Double])]],
                            k: Int,
-                           alpha0: Double
+                           alpha0: Double,
+                           maxIterations: Int,
+                           tol: Double
                           ): Unit = {
     val numTestTokens = splits(1)
       .map {
@@ -35,7 +45,12 @@ object CVLogPerplexity {
       }
       .reduce(_ + _)
 
-    val tensorLDA = new TensorLDA(dimK = k, alpha0 = alpha0)
+    val tensorLDA = new TensorLDA(
+      dimK = k,
+      alpha0 = alpha0,
+      maxIterations = maxIterations,
+      tol = tol
+    )
     val (beta, alpha, _, _, m1) = tensorLDA.fit(splits(0))
 
     val augBeta = breeze.linalg.DenseMatrix.zeros[Double](beta.rows, k + 1)
@@ -68,6 +83,7 @@ object CVLogPerplexity {
       .setMaxIterations(80)
       .setK(k)
       .setDocConcentration(alpha0 / k.toDouble)
+      .setBeta(1.0)
 
     val ldaModel: LDAModel = lda.run(trainMapped)
     val ldaLogL = ldaModel.asInstanceOf[LocalLDAModel].logLikelihood(testMapped)

@@ -27,14 +27,22 @@ import breeze.stats.distributions.{Gaussian, Rand, RandBasis}
   * @param thirdOrderMoments  dimK-by-(dimK*dimK) matrix for the unfolded 3rd-order moments
   *                           $\sum_{i=1}^k\alpha_i\beta_i^{\otimes 3}$
   * @param maxIterations      max iterations for the ALS algorithm
+  * @param tol                tolerance. the dot product threshold is 1-tol
+  * @param restarts           number of restarts of the ALS loop
   */
 class ALS(dimK: Int,
           thirdOrderMoments: DenseMatrix[Double],
-          maxIterations: Int = 200)
+          maxIterations: Int = 500,
+          tol: Double = 1e-6,
+          restarts: Int = 5)
   extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
   assert(thirdOrderMoments.rows == dimK && thirdOrderMoments.cols == dimK * dimK,
     "The thirdOrderMoments must be dimK-by-(dimK * dimK) unfolded matrix")
+
+  assert(maxIterations > 0, "Max iterations must be positive.")
+  assert(tol > 0.0, "tol must be positive and probably close to 0.")
+  assert(restarts > 0, "Number of restarts for ALS must be positive.")
 
   /** Run Alternating Least Squares (ALS)
     *
@@ -44,11 +52,9 @@ class ALS(dimK: Int,
     * @return            three dimK-by-dimK matrices with all the $beta_i$ as columns,
     *                    length-dimK vector for all the eigenvalues
     */
-  def run(implicit randBasis: RandBasis = Rand, restarts: Int = 5)
+  def run(implicit randBasis: RandBasis = Rand)
      : (DenseMatrix[Double], DenseMatrix[Double],
         DenseMatrix[Double], DenseVector[Double])={
-    assert(restarts > 0, "Number of restarts for ALS must be positive.")
-
     val gaussian = Gaussian(mu = 0.0, sigma = 1.0)
 
     var optimalA = DenseMatrix.zeros[Double](dimK, dimK)
@@ -73,8 +79,8 @@ class ALS(dimK: Int,
 
       println("Start ALS iterations...")
       var iter: Int = 0
-      while ((iter == 0) ||
-        ((iter < maxIterations) && !AlgebraUtil.isConverged(A_prev, A)(dotThreshold = 0.999))) {
+      while ((iter == 0) || (iter < maxIterations &&
+        !AlgebraUtil.isConverged(A_prev, A, dotProductThreshold = 1 - tol))) {
         A_prev = A.copy
 
         val (updatedA, updatedLambda1) = updateALSIteration(thirdOrderMoments, B, C)
@@ -116,78 +122,5 @@ class ALS(dimK: Int,
     val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
     val lambda = norm(updatedA(::, *)).toDenseVector
     (AlgebraUtil.matrixNormalization(updatedA), lambda)
-  }
-
-  /** Eigenvectors orthogonality correction
-    *
-    * Not called by run() as they could cost the global convergence of ALS
-    */
-  private def updateOrthoALSIteration1(unfoldedM3: DenseMatrix[Double],
-                                       B: DenseMatrix[Double],
-                                       C: DenseMatrix[Double])
-                                      (implicit nonOrthoPenalty: Double = 10.0)
-  : (DenseMatrix[Double], DenseVector[Double]) = {
-    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
-    val qr.QR(q, _) = qr(updatedA)
-    (q, lambda)
-  }
-
-  /** Eigenvectors orthogonality correction
-    *
-    * Not called by run() as they could cost the global convergence of ALS
-    */
-  private def updateOrthoALSIteration2(unfoldedM3: DenseMatrix[Double],
-                                       B: DenseMatrix[Double],
-                                       C: DenseMatrix[Double])
-  : (DenseMatrix[Double], DenseVector[Double]) = {
-    val updatedA = unfoldedM3 * TensorOps.krprod(C, B) * TensorOps.to_invert(C, B)
-    val qr.QR(q, r) = qr(updatedA)
-    (q, diag(r))
-  }
-
-  /** Eigenvectors orthogonality correction via ADMM
-    *
-    * After the plain ALS update A^*, we try to minimize
-    *
-    *    min norm(a_i - a_i^*) + penalty * (a_i^T a_i - 1) ^2 + penalty * \sum_{j\neq i}(a_i^T a_j) ^ 2
-    *
-    * where a_i is the i-th row of A, a_i^* is the i-th row of A^*.
-    *
-    * Not called by run() as they could cost the global convergence of ALS
-    */
-  private def updateOrthoALSIteration3(unfoldedM3: DenseMatrix[Double],
-                                       B: DenseMatrix[Double],
-                                       C: DenseMatrix[Double])
-                                      (implicit
-                                       penalty: Double = 10.0,
-                                       step: Double = 1e-3,
-                                       maxIter: Int = 100,
-                                       tol: Double = 1e-4)
-  : (DenseMatrix[Double], DenseVector[Double]) = {
-    val (updatedA, lambda) = updateALSIteration(unfoldedM3, B, C)
-    var orthoA = updatedA.copy
-    var nextOrthoA = updatedA.copy
-
-    var i = 0
-    val eyeK = DenseMatrix.eye[Double](dimK)
-
-    if (TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK) / dimK.toDouble > 1e-4) {
-      while ((i == 0) || (i < maxIter &&
-        TensorOps.dmatrixNorm(nextOrthoA - orthoA) > tol * TensorOps.dmatrixNorm(orthoA))) {
-        orthoA = nextOrthoA
-
-        val h = eyeK + penalty * (orthoA.t * orthoA - eyeK)
-        val grad = orthoA * h - updatedA
-
-        nextOrthoA = orthoA - step * grad
-
-        i += 1
-      }
-    }
-
-    val normPrior = TensorOps.dmatrixNorm(updatedA.t * updatedA - eyeK)
-    val normPost = TensorOps.dmatrixNorm(nextOrthoA.t * nextOrthoA - eyeK)
-    println(s"norm(A^T A-I) prior proximal op: ${normPrior}\tpost proximal op: ${normPost}\tProximal steps: $i")
-    (nextOrthoA, lambda)
   }
 }
