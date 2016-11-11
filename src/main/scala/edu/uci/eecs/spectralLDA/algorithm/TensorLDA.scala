@@ -31,7 +31,8 @@ class TensorLDA(dimK: Int,
                 tol: Double = 1e-6,
                 idfLowerBound: Double = 1.0,
                 m2ConditionNumberUB: Double = Double.PositiveInfinity,
-                randomisedSVD: Boolean = true) extends Serializable {
+                randomisedSVD: Boolean = true,
+                numIterationsKrylovMethod: Int = 1) extends Serializable {
   assert(dimK > 0, "The number of topics dimK must be positive.")
   assert(alpha0 > 0, "The topic concentration alpha0 must be positive.")
   assert(maxIterations > 0, "The number of iterations for ALS must be positive.")
@@ -48,7 +49,8 @@ class TensorLDA(dimK: Int,
       documents,
       idfLowerBound = idfLowerBound,
       m2ConditionNumberUB = m2ConditionNumberUB,
-      randomisedSVD = randomisedSVD
+      randomisedSVD = randomisedSVD,
+      numIterationsKrylovMethod = numIterationsKrylovMethod
     )
 
     val myALS: ALS = new ALS(

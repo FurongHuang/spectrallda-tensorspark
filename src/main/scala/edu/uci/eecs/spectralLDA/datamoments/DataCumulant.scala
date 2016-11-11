@@ -58,7 +58,8 @@ object DataCumulant {
                       documents: RDD[(Long, SparseVector[Double])],
                       idfLowerBound: Double = 1.0,
                       m2ConditionNumberUB: Double = Double.PositiveInfinity,
-                      randomisedSVD: Boolean = true)
+                      randomisedSVD: Boolean = true,
+                      numIterationsKrylovMethod: Int = 1)
                      (implicit randBasis: RandBasis = Rand)
         : DataCumulant = {
     assert(dimK > 0, "The number of topics dimK must be positive.")
@@ -109,7 +110,8 @@ object DataCumulant {
           numDocs,
           firstOrderMoments,
           validDocuments,
-          termsLowIDF
+          termsLowIDF,
+          nIter = numIterationsKrylovMethod
         )
       }
       else {
