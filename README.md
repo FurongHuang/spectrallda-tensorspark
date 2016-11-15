@@ -26,6 +26,7 @@ We use the `sbt` build system. By default we support Scala 2.11.8 and Spark 2.0.
       --alpha0 <value>         sum of the topic distribution prior parameter
       --min-words <value>      minimum count of words for every document. default: 0
       --idf-lb <value>         only work on terms with IDF above the lower bound. default: 1.0
+      --q <value>              number of iterations q for RandSVD of M2. default: 1
       --M2-cond-num-ub <value>
                                stop if the M2 condition number is higher than the given bound. default: 1000.0
       --max-iter <value>       number of iterations of learning. default: 500
@@ -71,7 +72,8 @@ val lda = new TensorLDA(
   tol = value,                      // optional, default: 1e-6
   idfLowerBound = value,            // optional, default: 1.0
   m2ConditionNumberUB = value,      // optional, default: infinity
-  randomisedSVD = true              // optional, default: true
+  randomisedSVD = true,             // optional, default: true
+  numIterationsKrylovMethod = value // optional, default: 1
 )
 
 // Fit against the documents
