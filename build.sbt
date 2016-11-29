@@ -73,3 +73,30 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
     case _ => MergeStrategy.first
   }
 }
+
+
+spName := "FurongHuang/SpectralLDA-TensorSpark"
+
+sparkVersion := "2.0.2"
+
+sparkComponents += "mllib"
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
+
+spShortDescription := "Spectral LDA Algorithm using Tensor Decomposition"
+
+spDescription := """The Spectral LDA algorithm transforms the LDA problem to an orthogonal tensor decomposition problem. [[Anandkumar 2012]] establishes theoretical guarantee for the convergence of orthogonal tensor decomposition. 
+
+This algorithm first builds 2nd-order, 3rd-order moments from the empirical word counts, orthogonalize them and finally perform the tensor decomposition on the orthogonalised data moments. The whole procedure is purely linear and could leverage machine native BLAS/LAPACK libraries (the Spark needs to be compiled with `-Pnetlib-lgpl` option).
+
+It achieves competitive log-perplexity vs Online Variational Inference in the shortest time. It also has clean memory usage -- as of v2.0.0 we've experienced crash due to memory problem with the built-in Gibbs Sampler or Online Variational Inference, but never with the Spectral LDA algorithm. This algorithm is linearly scalable. 
+
+The official repo is at https://github.com/FurongHuang/SpectralLDA-TensorSpark. We refactored for the Spark coding style and interfaces when porting over for the PR. We wrote a report describing the algorithm in detail and listing test results at https://www.overleaf.com/read/wscdvwrjmtmw.
+
+REFERENCES
+Anandkumar, Anima, et al., Tensor decompositions for learning latent variable models, 2012, https://arxiv.org/abs/1210.7559."""
+
+licenses += "Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0")
+
+
+
