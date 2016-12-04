@@ -41,18 +41,6 @@ libraryDependencies ++= Seq(
 )
 
 
-{
-  val defaultSparkVersion = "[2.0.0,)"
-  val sparkVersion =
-    scala.util.Properties.envOrElse("SPARK_VERSION", defaultSparkVersion)
-
-  libraryDependencies ++= Seq(
-    "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
-    "org.apache.spark" %% "spark-mllib" % sparkVersion % "provided",
-    "org.apache.spark" %% "spark-sql" % sparkVersion % "provided"
-  )
-}
-
 //{
 //  val defaultHadoopVersion = "[2.6.0,)"
 //  val hadoopVersion =
