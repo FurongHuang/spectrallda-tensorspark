@@ -65,7 +65,7 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
 }
 
 
-spName := "FurongHuang/SpectralLDA-TensorSpark"
+spName := "FurongHuang/spectrallda-tensorspark"
 
 sparkVersion := "2.0.2"
 
