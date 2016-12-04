@@ -84,7 +84,10 @@ It achieves competitive log-perplexity vs Online Variational Inference in the sh
 The official repo is at https://github.com/FurongHuang/SpectralLDA-TensorSpark. We refactored for the Spark coding style and interfaces when porting over for the PR. We wrote a report describing the algorithm in detail and listing test results at https://www.overleaf.com/read/wscdvwrjmtmw.
 
 REFERENCES
-Anandkumar, Anima, et al., Tensor decompositions for learning latent variable models, 2012, https://arxiv.org/abs/1210.7559."""
+Tensor decompositions for learning latent variable models, by A. Anandkumar, R. Ge, D. Hsu, S.M. Kakade and M. Telgarsky. JMLR 2014.
+
+Online Tensor Methods for Learning Latent Variable Models, by F. Huang, U.N.Niranjan, M.U.Hakeem, A.Anandkumar. JMLR 2014."""
+
 
 licenses += "Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0")
 
