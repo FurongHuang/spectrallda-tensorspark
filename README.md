@@ -1,4 +1,5 @@
 # Spectral LDA on Spark
+**Note: For up-to-date version please refer to [https://github.com/Mega-DatA-Lab/SpectralLDA-Spark].**
 
 ## Summary 
 * This code implements a Spectral (third order tensor decomposition) learning method for learning LDA topic model on Spark.
